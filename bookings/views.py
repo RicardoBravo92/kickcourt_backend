@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Booking
 from .serializers import BookingSerializer, BookingListSerializer
-from .services import send_booking_confirmation
+from .services import send_booking_confirmation, send_booking_cancelation
 from accounts.permissions import IsAdmin
 
 User = get_user_model()
@@ -57,6 +57,7 @@ class BookingViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Booking already cancelled'}, status=status.HTTP_400_BAD_REQUEST)
         booking.status = Booking.Status.CANCELLED
         booking.save()
+        send_booking_cancelation(booking)
         return Response({'status': 'cancelled'})
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdmin])

@@ -1,9 +1,8 @@
 import logging
 from django.core.exceptions import ValidationError
-from django.core.mail import send_mail
-from django.conf import settings
 from django.utils import timezone
 from .models import Booking
+from .tasks import send_booking_confirmation_email, send_booking_cancelation_email
 
 logger = logging.getLogger(__name__)
 
@@ -55,27 +54,21 @@ def create_booking(user, field, date, start_time, end_time):
 
 
 def send_booking_confirmation(booking):
-    try:
-        subject = f'Booking Confirmation - {booking.field.name}'
-        message = f"""
-        Hi {booking.user.username},
+    send_booking_confirmation_email.delay(
+        user_email=booking.user.email,
+        user_username=booking.user.username,
+        field_name=booking.field.name,
+        date=str(booking.date),
+        start_time=str(booking.start_time),
+        end_time=str(booking.end_time),
+        total_price=str(booking.total_price),
+    )
 
-        Your booking has been confirmed!
 
-        Field: {booking.field.name}
-        Date: {booking.date}
-        Time: {booking.start_time} - {booking.end_time}
-        Total: ${booking.total_price}
-
-        Thank you for your booking!
-        """
-        send_mail(
-            subject,
-            message,
-            settings.DEFAULT_FROM_EMAIL,
-            [booking.user.email],
-            fail_silently=True,
-        )
-        logger.info(f'Booking confirmation sent to {booking.user.email}')
-    except Exception as e:
-        logger.error(f'Failed to send booking confirmation: {e}')
+def send_booking_cancelation(booking):
+    send_booking_cancelation_email.delay(
+        user_email=booking.user.email,
+        user_username=booking.user.username,
+        field_name=booking.field.name,
+        date=str(booking.date),
+    )
