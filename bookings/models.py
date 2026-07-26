@@ -1,10 +1,10 @@
 from django.db import models
 from django.utils import timezone
 from accounts.models import User
-from fields.models import Field
+from fields.models import Field, SoftDeleteQuerySet
 
 
-class BookingQuerySet(models.QuerySet):
+class BookingQuerySet(SoftDeleteQuerySet):
     def pending(self):
         return self.filter(status=Booking.Status.PENDING)
 
@@ -45,6 +45,7 @@ class Booking(models.Model):
     total_price = models.DecimalField(max_digits=8, decimal_places=2)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
 
     objects = BookingQuerySet.as_manager()
 
@@ -55,7 +56,16 @@ class Booking(models.Model):
             models.Index(fields=['status']),
             models.Index(fields=['user', 'date']),
             models.Index(fields=['field', 'date']),
+            models.Index(fields=['deleted_at']),
         ]
+
+    def delete(self, using=None, keep_parents=False):
+        self.deleted_at = timezone.now()
+        self.save(update_fields=['deleted_at'])
+
+    def restore(self):
+        self.deleted_at = None
+        self.save(update_fields=['deleted_at'])
 
     def __str__(self):
         return f"Booking {self.field.name} - {self.date} ({self.start_time} - {self.end_time})"

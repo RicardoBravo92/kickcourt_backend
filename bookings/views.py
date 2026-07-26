@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Booking
 from .serializers import BookingSerializer, BookingListSerializer
+from .services import send_booking_confirmation
 from accounts.permissions import IsAdmin
 
 User = get_user_model()
@@ -23,8 +24,8 @@ class BookingViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.role == User.Roles.ADMIN:
-            return Booking.objects.with_field().with_user()
-        return Booking.objects.for_user(user).with_field()
+            return Booking.objects.active().with_field().with_user()
+        return Booking.objects.active().for_user(user).with_field()
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -32,18 +33,19 @@ class BookingViewSet(viewsets.ModelViewSet):
         return BookingSerializer
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        booking = serializer.save(user=self.request.user)
+        send_booking_confirmation(booking)
 
     @action(detail=False, methods=['get'])
     def my_bookings(self, request):
-        bookings = Booking.objects.for_user(request.user).with_field().upcoming()
+        bookings = Booking.objects.active().for_user(request.user).with_field().upcoming()
         page = self.paginate_queryset(bookings)
         serializer = BookingListSerializer(page, many=True)
         return self.get_paginated_response(serializer.data)
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsAdmin])
     def pending(self, request):
-        bookings = Booking.objects.pending().with_field().with_user()
+        bookings = Booking.objects.active().pending().with_field().with_user()
         page = self.paginate_queryset(bookings)
         serializer = BookingListSerializer(page, many=True)
         return self.get_paginated_response(serializer.data)
@@ -56,3 +58,16 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking.status = Booking.Status.CANCELLED
         booking.save()
         return Response({'status': 'cancelled'})
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdmin])
+    def restore(self, request, pk=None):
+        booking = self.get_object()
+        booking.restore()
+        return Response({'status': 'restored'})
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsAdmin])
+    def deleted(self, request):
+        bookings = Booking.objects.deleted().with_field().with_user()
+        page = self.paginate_queryset(bookings)
+        serializer = BookingListSerializer(page, many=True)
+        return self.get_paginated_response(serializer.data)

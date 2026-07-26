@@ -1,6 +1,11 @@
+import logging
 from django.core.exceptions import ValidationError
+from django.core.mail import send_mail
+from django.conf import settings
 from django.utils import timezone
 from .models import Booking
+
+logger = logging.getLogger(__name__)
 
 
 def validate_booking_slots(field, date, start_time, end_time, exclude_pk=None):
@@ -47,3 +52,30 @@ def create_booking(user, field, date, start_time, end_time):
     booking.full_clean()
     booking.save()
     return booking
+
+
+def send_booking_confirmation(booking):
+    try:
+        subject = f'Booking Confirmation - {booking.field.name}'
+        message = f"""
+        Hi {booking.user.username},
+
+        Your booking has been confirmed!
+
+        Field: {booking.field.name}
+        Date: {booking.date}
+        Time: {booking.start_time} - {booking.end_time}
+        Total: ${booking.total_price}
+
+        Thank you for your booking!
+        """
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [booking.user.email],
+            fail_silently=True,
+        )
+        logger.info(f'Booking confirmation sent to {booking.user.email}')
+    except Exception as e:
+        logger.error(f'Failed to send booking confirmation: {e}')

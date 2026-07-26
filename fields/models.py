@@ -1,9 +1,24 @@
 from django.db import models
+from django.utils import timezone
 
 
-class FieldQuerySet(models.QuerySet):
+class SoftDeleteQuerySet(models.QuerySet):
+    def delete(self):
+        return self.update(deleted_at=timezone.now())
+
+    def hard_delete(self):
+        return super().delete()
+
+    def deleted(self):
+        return self.filter(deleted_at__isnull=False)
+
     def active(self):
-        return self.filter(is_active=True)
+        return self.filter(deleted_at__isnull=True)
+
+
+class FieldQuerySet(SoftDeleteQuerySet):
+    def active(self):
+        return super().active().filter(is_active=True)
 
     def by_type(self, field_type):
         return self.filter(field_type=field_type)
@@ -35,6 +50,8 @@ class Field(models.Model):
     price_per_hour = models.DecimalField(max_digits=8, decimal_places=2)
     is_active = models.BooleanField(default=True)
     description = models.TextField(blank=True, null=True)
+    photo = models.ImageField(upload_to='fields/', blank=True, null=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
 
     objects = FieldQuerySet.as_manager()
 
@@ -44,7 +61,16 @@ class Field(models.Model):
             models.Index(fields=['name']),
             models.Index(fields=['field_type']),
             models.Index(fields=['is_active']),
+            models.Index(fields=['deleted_at']),
         ]
+
+    def delete(self, using=None, keep_parents=False):
+        self.deleted_at = timezone.now()
+        self.save(update_fields=['deleted_at'])
+
+    def restore(self):
+        self.deleted_at = None
+        self.save(update_fields=['deleted_at'])
 
     def __str__(self):
         return f"{self.name} ({self.get_field_type_display()}) - ${self.price_per_hour}/h"
