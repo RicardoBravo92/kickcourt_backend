@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: soccer_booking
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  web:
+    build: .
+    restart: unless-stopped
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+volumes:
+  pgdata:

@@ -1,9 +1,13 @@
 from datetime import timedelta
 from pathlib import Path
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY = 'django-insecure-zzwes)(#9%144k+6a^o+j_xvngzt28tqb_!+2qu@qr-(e7k^wp'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-change-me-in-production')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -35,10 +39,7 @@ MIDDLEWARE = [
 
 AUTH_USER_MODEL = 'accounts.User'
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:4200",
-    "http://127.0.0.1:4200",
-]
+CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:4200').split(',')
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -78,8 +79,12 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME', 'soccer_booking'),
+        'USER': os.getenv('DB_USER', 'postgres'),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
     }
 }
 
