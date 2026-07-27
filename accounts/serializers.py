@@ -26,7 +26,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'password', 'password_confirm', 'role', 'phone_number')
+        fields = ('id', 'username', 'email', 'password', 'password_confirm', 'phone_number')
         read_only_fields = ('id',)
 
     def validate(self, data):
@@ -39,6 +39,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.pop('password_confirm')
         password = validated_data.pop('password')
+        validated_data['role'] = User.Roles.CLIENT
         user = User.objects.create(**validated_data)
         user.set_password(password)
         user.save()
