@@ -1,8 +1,11 @@
+from datetime import time, datetime, timedelta
+
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.core.cache import cache
+from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Field
 from .serializers import FieldSerializer, FieldListSerializer
@@ -27,7 +30,7 @@ class FieldViewSet(viewsets.ModelViewSet):
         return FieldSerializer
 
     def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
+        if self.action in ['list', 'retrieve', 'availability']:
             return [AllowAny()]
         return [IsAuthenticated(), IsAdmin()]
 
@@ -61,6 +64,52 @@ class FieldViewSet(viewsets.ModelViewSet):
         field.restore()
         cache.delete(FIELDS_CACHE_KEY)
         return Response({'status': 'restored'})
+
+    @action(detail=True, methods=['get'], permission_classes=[AllowAny])
+    def availability(self, request, pk=None):
+        field = self.get_object()
+        date_str = request.query_params.get('date')
+        if not date_str:
+            return Response({'error': 'date query param is required (YYYY-MM-DD)'}, status=400)
+        try:
+            target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=400)
+
+        from bookings.models import Booking
+        booked = Booking.objects.filter(
+            field=field,
+            date=target_date,
+            status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
+        ).values_list('start_time', 'end_time')
+
+        booked_set = set()
+        for st, et in booked:
+            current = datetime.combine(target_date, st)
+            end = datetime.combine(target_date, et)
+            while current < end:
+                booked_set.add(current.time())
+                current += timedelta(hours=1)
+
+        OPEN_HOUR = 8
+        CLOSE_HOUR = 23
+        slots = []
+        for h in range(OPEN_HOUR, CLOSE_HOUR):
+            slot_start = time(h, 0)
+            slot_end = time(h + 1, 0)
+            slots.append({
+                'start_time': slot_start.strftime('%H:%M'),
+                'end_time': slot_end.strftime('%H:%M'),
+                'available': slot_start not in booked_set,
+            })
+
+        return Response({
+            'field_id': field.id,
+            'field_name': field.name,
+            'date': date_str,
+            'price_per_hour': str(field.price_per_hour),
+            'slots': slots,
+        })
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsAdmin])
     def deleted(self, request):

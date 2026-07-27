@@ -34,6 +34,9 @@ class BookingViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         booking = serializer.save(user=self.request.user)
+        from .services import calculate_total_price
+        booking.total_price = calculate_total_price(booking.field, booking.start_time, booking.end_time)
+        booking.save(update_fields=['total_price'])
         send_booking_confirmation(booking)
 
     @action(detail=False, methods=['get'])

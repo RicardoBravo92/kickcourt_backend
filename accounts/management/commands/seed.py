@@ -69,12 +69,13 @@ class Command(BaseCommand):
                     "phone_number": data["phone_number"],
                 },
             )
+            user.set_password(data["password"])
+            user.role = data["role"]
+            user.save()
             if created:
-                user.set_password(data["password"])
-                user.save()
                 self.stdout.write(f"  Created user: {user.username}")
             else:
-                self.stdout.write(f"  User already exists: {user.username}")
+                self.stdout.write(f"  Updated user: {user.username}")
             users.append(user)
         return users
 
