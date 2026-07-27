@@ -42,6 +42,9 @@ python manage.py migrate
 # Create superuser
 python manage.py createsuperuser
 
+# Seed database (optional)
+python manage.py seed
+
 # Start server
 python manage.py runserver
 ```
@@ -60,6 +63,18 @@ python manage.py runserver
 | GET | `/api/bookings/my_bookings/` | My bookings | Yes |
 | POST | `/api/bookings/{id}/cancel/` | Cancel booking | Yes |
 
+## Seed Data
+
+```bash
+python manage.py seed           # Create sample data (skips duplicates)
+python manage.py seed --clear   # Clear existing data and re-seed
+```
+
+Creates:
+- **5 users**: 1 admin (`admin` / `Admin1234!`) + 4 clients (`carlos`, `maria`, `diego`, `lucia` / `Client1234!`)
+- **10 fields**: various types (5/7/11-a-side), surfaces (synthetic/natural/indoor), prices ($22-$80/h)
+- **15 bookings**: all statuses (PENDING, CONFIRMED, CANCELLED, COMPLETED) across past, present, and future dates
+
 ## Project Structure
 
 ```
@@ -71,7 +86,8 @@ soccer_backend/
 ├── accounts/            # User management
 │   ├── models.py        # Custom User model
 │   ├── views.py         # Register endpoint
-│   └── permissions.py   # IsAdmin, IsClient
+│   ├── permissions.py   # IsAdmin, IsClient
+│   └── management/commands/seed.py  # Database seeder
 ├── fields/              # Soccer field catalog
 │   ├── models.py        # Field model with QuerySet
 │   └── views.py         # Field CRUD
