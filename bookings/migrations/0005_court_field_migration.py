@@ -4,14 +4,24 @@ from django.db import migrations, models
 
 
 def migrate_fields_to_courts(apps, schema_editor):
-    Court = apps.get_model('courts', 'Court')
-    CourtSchedule = apps.get_model('courts', 'CourtSchedule')
-    CourtBlock = apps.get_model('courts', 'CourtBlock')
-    Field = apps.get_model('fields', 'Field')
-    FieldSchedule = apps.get_model('fields', 'FieldSchedule')
-    FieldBlock = apps.get_model('fields', 'FieldBlock')
-    Booking = apps.get_model('bookings', 'Booking')
-    Vendor = apps.get_model('vendors', 'Vendor')
+    try:
+        Court = apps.get_model('courts', 'Court')
+        CourtSchedule = apps.get_model('courts', 'CourtSchedule')
+        CourtBlock = apps.get_model('courts', 'CourtBlock')
+        Field = apps.get_model('fields', 'Field')
+        Booking = apps.get_model('bookings', 'Booking')
+    except LookupError:
+        return
+
+    try:
+        FieldSchedule = apps.get_model('fields', 'FieldSchedule')
+    except LookupError:
+        FieldSchedule = None
+
+    try:
+        FieldBlock = apps.get_model('fields', 'FieldBlock')
+    except LookupError:
+        FieldBlock = None
 
     field_map = {}
     for field in Field.objects.all():
@@ -27,29 +37,30 @@ def migrate_fields_to_courts(apps, schema_editor):
         )
         field_map[field.id] = court.id
 
-    for schedule in FieldSchedule.objects.all():
-        court_id = field_map.get(schedule.field_id)
-        if court_id:
-            CourtSchedule.objects.create(
-                court_id=court_id,
-                day_of_week=schedule.day_of_week,
-                open_time=schedule.open_time,
-                close_time=schedule.close_time,
-                is_active=schedule.is_active,
-            )
+    if FieldSchedule:
+        for schedule in FieldSchedule.objects.all():
+            court_id = field_map.get(schedule.field_id)
+            if court_id:
+                CourtSchedule.objects.create(
+                    court_id=court_id,
+                    day_of_week=schedule.day_of_week,
+                    open_time=schedule.open_time,
+                    close_time=schedule.close_time,
+                    is_active=schedule.is_active,
+                )
 
-    for block in FieldBlock.objects.all():
-        court_id = field_map.get(block.field_id)
-        if court_id:
-            from accounts.models import User
-            CourtBlock.objects.create(
-                court_id=court_id,
-                date=block.date,
-                start_time=block.start_time,
-                end_time=block.end_time,
-                reason=block.reason or '',
-                created_by=block.created_by,
-            )
+    if FieldBlock:
+        for block in FieldBlock.objects.all():
+            court_id = field_map.get(block.field_id)
+            if court_id:
+                CourtBlock.objects.create(
+                    court_id=court_id,
+                    date=block.date,
+                    start_time=block.start_time,
+                    end_time=block.end_time,
+                    reason=block.reason or '',
+                    created_by=block.created_by,
+                )
 
     for booking in Booking.objects.all():
         court_id = field_map.get(booking.field_id)

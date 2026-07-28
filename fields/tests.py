@@ -31,12 +31,12 @@ class FieldViewSetTest(TestCase):
         )
 
     def test_list_fields_public(self):
-        response = self.client.get('/api/fields/')
+        response = self.client.get('/api/courts/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_create_field_requires_auth(self):
         data = {'name': 'New Field', 'price_per_hour': 50.00}
-        response = self.client.post('/api/fields/', data)
+        response = self.client.post('/api/courts/', data)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 

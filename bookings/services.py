@@ -34,7 +34,7 @@ def calculate_total_price(court, start_time, end_time):
     start = datetime.combine(timezone.now().date(), start_time)
     end = datetime.combine(timezone.now().date(), end_time)
     hours = Decimal(str((end - start).total_seconds() / 3600))
-    return court.price_per_hour * hours
+    return Decimal(str(court.price_per_hour)) * hours
 
 
 def calculate_commission(total_price, commission_rate):

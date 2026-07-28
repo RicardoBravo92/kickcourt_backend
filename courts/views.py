@@ -28,7 +28,7 @@ class CourtViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = Court.objects.active()
         user = self.request.user
-        if user.is_authenticated and hasattr(user, 'vendor_profile') and user.vendor_profile:
+        if self.request.query_params.get('my_courts') == 'true' and user.is_authenticated and hasattr(user, 'vendor_profile') and user.vendor_profile:
             qs = qs.filter(vendor=user.vendor_profile)
         sport = self.request.query_params.get('sport_type')
         if sport:
