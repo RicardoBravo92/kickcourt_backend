@@ -7,8 +7,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.core.cache import cache
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Field
-from .serializers import FieldSerializer, FieldListSerializer
+from .models import Field, FieldSchedule, FieldBlock
+from .serializers import FieldSerializer, FieldListSerializer, FieldScheduleSerializer, FieldBlockSerializer
 from accounts.permissions import IsAdmin
 
 FIELDS_CACHE_KEY = 'fields_list'
@@ -76,6 +76,26 @@ class FieldViewSet(viewsets.ModelViewSet):
         except ValueError:
             return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=400)
 
+        day_of_week = target_date.weekday()
+        schedule = FieldSchedule.objects.filter(
+            field=field,
+            day_of_week=day_of_week,
+            is_active=True,
+        ).first()
+
+        if not schedule:
+            return Response({
+                'field_id': field.id,
+                'field_name': field.name,
+                'date': date_str,
+                'price_per_hour': str(field.price_per_hour),
+                'slots': [],
+                'message': 'Field is not open on this day.',
+            })
+
+        open_hour = schedule.open_time.hour
+        close_hour = schedule.close_time.hour
+
         from bookings.models import Booking
         booked = Booking.objects.filter(
             field=field,
@@ -91,16 +111,29 @@ class FieldViewSet(viewsets.ModelViewSet):
                 booked_set.add(current.time())
                 current += timedelta(hours=1)
 
-        OPEN_HOUR = 8
-        CLOSE_HOUR = 23
+        blocks = FieldBlock.objects.filter(
+            field=field,
+            date=target_date,
+        )
+        blocked_set = set()
+        for block in blocks:
+            current = datetime.combine(target_date, block.start_time)
+            end = datetime.combine(target_date, block.end_time)
+            while current < end:
+                blocked_set.add(current.time())
+                current += timedelta(hours=1)
+
         slots = []
-        for h in range(OPEN_HOUR, CLOSE_HOUR):
+        for h in range(open_hour, close_hour):
             slot_start = time(h, 0)
             slot_end = time(h + 1, 0)
+            is_blocked = slot_start in blocked_set
+            is_booked = slot_start in booked_set
             slots.append({
                 'start_time': slot_start.strftime('%H:%M'),
                 'end_time': slot_end.strftime('%H:%M'),
-                'available': slot_start not in booked_set,
+                'available': not is_blocked and not is_booked,
+                'blocked': is_blocked,
             })
 
         return Response({
@@ -117,3 +150,48 @@ class FieldViewSet(viewsets.ModelViewSet):
         page = self.paginate_queryset(fields)
         serializer = FieldListSerializer(page, many=True)
         return self.get_paginated_response(serializer.data)
+
+
+class FieldScheduleViewSet(viewsets.ModelViewSet):
+    serializer_class = FieldScheduleSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get_queryset(self):
+        field_id = self.request.query_params.get('field_id')
+        if field_id:
+            return FieldSchedule.objects.filter(field_id=field_id)
+        return FieldSchedule.objects.all()
+
+    def perform_create(self, serializer):
+        serializer.save()
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsAdmin])
+    def bulk(self, request):
+        schedules_data = request.data
+        if not isinstance(schedules_data, list):
+            return Response({'error': 'Expected a list of schedules'}, status=400)
+
+        created = []
+        for data in schedules_data:
+            serializer = FieldScheduleSerializer(data=data)
+            if serializer.is_valid():
+                serializer.save()
+                created.append(serializer.data)
+            else:
+                return Response(serializer.errors, status=400)
+
+        return Response(created, status=201)
+
+
+class FieldBlockViewSet(viewsets.ModelViewSet):
+    serializer_class = FieldBlockSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get_queryset(self):
+        field_id = self.request.query_params.get('field_id')
+        if field_id:
+            return FieldBlock.objects.filter(field_id=field_id)
+        return FieldBlock.objects.all()
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)

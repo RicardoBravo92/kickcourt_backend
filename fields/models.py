@@ -74,3 +74,43 @@ class Field(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.get_field_type_display()}) - ${self.price_per_hour}/h"
+
+
+class FieldSchedule(models.Model):
+    class DayOfWeek(models.IntegerChoices):
+        MONDAY = 0, 'Monday'
+        TUESDAY = 1, 'Tuesday'
+        WEDNESDAY = 2, 'Wednesday'
+        THURSDAY = 3, 'Thursday'
+        FRIDAY = 4, 'Friday'
+        SATURDAY = 5, 'Saturday'
+        SUNDAY = 6, 'Sunday'
+
+    field = models.ForeignKey(Field, on_delete=models.CASCADE, related_name='schedules')
+    day_of_week = models.IntegerField(choices=DayOfWeek.choices)
+    open_time = models.TimeField()
+    close_time = models.TimeField()
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ('field', 'day_of_week')
+        ordering = ['field', 'day_of_week']
+
+    def __str__(self):
+        return f"{self.field.name} - {self.get_day_of_week_display()}: {self.open_time}-{self.close_time}"
+
+
+class FieldBlock(models.Model):
+    field = models.ForeignKey(Field, on_delete=models.CASCADE, related_name='blocks')
+    date = models.DateField()
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    reason = models.CharField(max_length=200, blank=True)
+    created_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, related_name='field_blocks')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-date', '-start_time']
+
+    def __str__(self):
+        return f"{self.field.name} - {self.date} {self.start_time}-{self.end_time}"
