@@ -4,29 +4,30 @@ from .models import Booking
 
 class BookingSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
-    field_name = serializers.CharField(source='field.name', read_only=True)
+    court_name = serializers.CharField(source='court.name', read_only=True)
+    vendor_name = serializers.CharField(source='court.vendor.business_name', read_only=True, default=None)
 
     class Meta:
         model = Booking
         fields = '__all__'
-        read_only_fields = ('id', 'user', 'total_price', 'created_at')
+        read_only_fields = ('id', 'user', 'total_price', 'commission', 'created_at')
 
     def validate(self, attrs):
         from .services import validate_booking_slots
-        field = attrs.get('field')
+        court = attrs.get('court')
         date = attrs.get('date')
         start_time = attrs.get('start_time')
         end_time = attrs.get('end_time')
 
-        if field and date and start_time and end_time:
+        if court and date and start_time and end_time:
             exclude_pk = self.instance.pk if self.instance else None
-            validate_booking_slots(field, date, start_time, end_time, exclude_pk)
+            validate_booking_slots(court, date, start_time, end_time, exclude_pk)
         return attrs
 
 
 class BookingListSerializer(serializers.ModelSerializer):
-    field_name = serializers.CharField(source='field.name', read_only=True)
+    court_name = serializers.CharField(source='court.name', read_only=True)
 
     class Meta:
         model = Booking
-        fields = ('id', 'field_name', 'date', 'start_time', 'end_time', 'status', 'total_price')
+        fields = ('id', 'court_name', 'date', 'start_time', 'end_time', 'status', 'total_price', 'commission')

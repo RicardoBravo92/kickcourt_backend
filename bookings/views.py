@@ -16,16 +16,21 @@ class BookingViewSet(viewsets.ModelViewSet):
     serializer_class = BookingSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'date', 'field']
-    search_fields = ['field__name', 'user__username']
+    filterset_fields = ['status', 'date', 'court']
+    search_fields = ['court__name', 'user__username']
     ordering_fields = ['date', 'start_time', 'created_at']
     ordering = ['-date', '-start_time']
 
     def get_queryset(self):
         user = self.request.user
         if user.role == User.Roles.ADMIN:
-            return Booking.objects.active().with_field().with_user()
-        return Booking.objects.active().for_user(user).with_field()
+            return Booking.objects.active().with_court().with_user()
+        if user.role == User.Roles.VENDOR:
+            from vendors.models import Vendor
+            vendor = Vendor.objects.filter(user=user).first()
+            if vendor:
+                return Booking.objects.active().for_vendor(vendor).with_court().with_user()
+        return Booking.objects.active().for_user(user).with_court()
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -34,21 +39,23 @@ class BookingViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         booking = serializer.save(user=self.request.user)
-        from .services import calculate_total_price
-        booking.total_price = calculate_total_price(booking.field, booking.start_time, booking.end_time)
-        booking.save(update_fields=['total_price'])
+        from .services import calculate_total_price, calculate_commission
+        booking.total_price = calculate_total_price(booking.court, booking.start_time, booking.end_time)
+        if booking.court.vendor and booking.court.vendor.is_approved:
+            booking.commission = calculate_commission(booking.total_price, booking.court.vendor.commission_rate)
+        booking.save(update_fields=['total_price', 'commission'])
         send_booking_confirmation(booking)
 
     @action(detail=False, methods=['get'])
     def my_bookings(self, request):
-        bookings = Booking.objects.active().for_user(request.user).with_field().upcoming()
+        bookings = Booking.objects.active().for_user(request.user).with_court().upcoming()
         page = self.paginate_queryset(bookings)
         serializer = BookingListSerializer(page, many=True)
         return self.get_paginated_response(serializer.data)
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsAdmin])
     def pending(self, request):
-        bookings = Booking.objects.active().pending().with_field().with_user()
+        bookings = Booking.objects.active().pending().with_court().with_user()
         page = self.paginate_queryset(bookings)
         serializer = BookingListSerializer(page, many=True)
         return self.get_paginated_response(serializer.data)
@@ -71,7 +78,7 @@ class BookingViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsAdmin])
     def deleted(self, request):
-        bookings = Booking.objects.deleted().with_field().with_user()
+        bookings = Booking.objects.deleted().with_court().with_user()
         page = self.paginate_queryset(bookings)
         serializer = BookingListSerializer(page, many=True)
         return self.get_paginated_response(serializer.data)

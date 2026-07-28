@@ -1,13 +1,13 @@
 import logging
+from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from .models import Booking
-from .tasks import send_booking_confirmation_email, send_booking_cancelation_email
 
 logger = logging.getLogger(__name__)
 
 
-def validate_booking_slots(field, date, start_time, end_time, exclude_pk=None):
+def validate_booking_slots(court, date, start_time, end_time, exclude_pk=None):
     if start_time >= end_time:
         raise ValidationError({'end_time': 'End time must be after start time.'})
 
@@ -15,7 +15,7 @@ def validate_booking_slots(field, date, start_time, end_time, exclude_pk=None):
         raise ValidationError({'date': 'Cannot book dates in the past.'})
 
     overlapping = Booking.objects.filter(
-        field=field,
+        court=court,
         date=date,
         status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
         start_time__lt=end_time,
@@ -26,27 +26,35 @@ def validate_booking_slots(field, date, start_time, end_time, exclude_pk=None):
         overlapping = overlapping.exclude(pk=exclude_pk)
 
     if overlapping.exists():
-        raise ValidationError('This field is already booked for the selected time slot.')
+        raise ValidationError('This court is already booked for the selected time slot.')
 
 
-def calculate_total_price(field, start_time, end_time):
+def calculate_total_price(court, start_time, end_time):
     from datetime import datetime
     start = datetime.combine(timezone.now().date(), start_time)
     end = datetime.combine(timezone.now().date(), end_time)
-    hours = (end - start).total_seconds() / 3600
-    return field.price_per_hour * hours
+    hours = Decimal(str((end - start).total_seconds() / 3600))
+    return court.price_per_hour * hours
 
 
-def create_booking(user, field, date, start_time, end_time):
-    validate_booking_slots(field, date, start_time, end_time)
-    total_price = calculate_total_price(field, start_time, end_time)
+def calculate_commission(total_price, commission_rate):
+    return total_price * commission_rate / Decimal('100')
+
+
+def create_booking(user, court, date, start_time, end_time):
+    validate_booking_slots(court, date, start_time, end_time)
+    total_price = calculate_total_price(court, start_time, end_time)
+    commission = 0
+    if court.vendor and court.vendor.is_approved:
+        commission = calculate_commission(total_price, court.vendor.commission_rate)
     booking = Booking(
         user=user,
-        field=field,
+        court=court,
         date=date,
         start_time=start_time,
         end_time=end_time,
         total_price=total_price,
+        commission=commission,
     )
     booking.full_clean()
     booking.save()
@@ -54,10 +62,11 @@ def create_booking(user, field, date, start_time, end_time):
 
 
 def send_booking_confirmation(booking):
+    from .tasks import send_booking_confirmation_email
     send_booking_confirmation_email.delay(
         user_email=booking.user.email,
         user_username=booking.user.username,
-        field_name=booking.field.name,
+        court_name=booking.court.name,
         date=str(booking.date),
         start_time=str(booking.start_time),
         end_time=str(booking.end_time),
@@ -66,9 +75,10 @@ def send_booking_confirmation(booking):
 
 
 def send_booking_cancelation(booking):
+    from .tasks import send_booking_cancelation_email
     send_booking_cancelation_email.delay(
         user_email=booking.user.email,
         user_username=booking.user.username,
-        field_name=booking.field.name,
+        court_name=booking.court.name,
         date=str(booking.date),
     )

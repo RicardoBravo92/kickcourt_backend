@@ -7,15 +7,15 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task(bind=True, max_retries=3)
-def send_booking_confirmation_email(self, user_email, user_username, field_name, date, start_time, end_time, total_price):
+def send_booking_confirmation_email(self, user_email, user_username, court_name, date, start_time, end_time, total_price):
     try:
-        subject = f'Booking Confirmation - {field_name}'
+        subject = f'Booking Confirmation - {court_name}'
         message = f"""
         Hi {user_username},
 
         Your booking has been confirmed!
 
-        Field: {field_name}
+        Court: {court_name}
         Date: {date}
         Time: {start_time} - {end_time}
         Total: ${total_price}
@@ -37,15 +37,15 @@ def send_booking_confirmation_email(self, user_email, user_username, field_name,
 
 
 @shared_task(bind=True, max_retries=3)
-def send_booking_cancelation_email(self, user_email, user_username, field_name, date):
+def send_booking_cancelation_email(self, user_email, user_username, court_name, date):
     try:
-        subject = f'Booking Cancelled - {field_name}'
+        subject = f'Booking Cancelled - {court_name}'
         message = f"""
         Hi {user_username},
 
         Your booking has been cancelled.
 
-        Field: {field_name}
+        Court: {court_name}
         Date: {date}
 
         If this was a mistake, please create a new booking.

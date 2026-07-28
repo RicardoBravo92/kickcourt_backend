@@ -1,14 +1,24 @@
-from rest_framework.permissions import BasePermission
-from django.contrib.auth import get_user_model
-
-User = get_user_model()
+from rest_framework import permissions
 
 
-class IsAdmin(BasePermission):
+class IsAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.role == User.Roles.ADMIN
+        return request.user and request.user.is_authenticated and request.user.role == 'ADMIN'
 
 
-class IsClient(BasePermission):
+class IsClient(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.role == User.Roles.CLIENT
+        return request.user and request.user.is_authenticated and request.user.role == 'CLIENT'
+
+
+class IsVendor(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated and request.user.role == 'VENDOR'
+
+
+class IsAdminOrVendor(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return (
+            request.user and request.user.is_authenticated
+            and request.user.role in ['ADMIN', 'VENDOR']
+        )

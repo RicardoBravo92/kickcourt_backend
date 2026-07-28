@@ -1,10 +1,9 @@
 from django.db import models
 from django.utils import timezone
 from accounts.models import User
-from fields.models import Field, SoftDeleteQuerySet
 
 
-class BookingQuerySet(SoftDeleteQuerySet):
+class BookingQuerySet(models.QuerySet):
     def pending(self):
         return self.filter(status=Booking.Status.PENDING)
 
@@ -14,8 +13,11 @@ class BookingQuerySet(SoftDeleteQuerySet):
     def for_user(self, user):
         return self.filter(user=user)
 
-    def for_field(self, field):
-        return self.filter(field=field)
+    def for_court(self, court):
+        return self.filter(court=court)
+
+    def for_vendor(self, vendor):
+        return self.filter(court__vendor=vendor)
 
     def upcoming(self):
         return self.filter(date__gte=timezone.now().date())
@@ -23,8 +25,8 @@ class BookingQuerySet(SoftDeleteQuerySet):
     def past(self):
         return self.filter(date__lt=timezone.now().date())
 
-    def with_field(self):
-        return self.select_related('field')
+    def with_court(self):
+        return self.select_related('court')
 
     def with_user(self):
         return self.select_related('user')
@@ -38,11 +40,12 @@ class Booking(models.Model):
         COMPLETED = 'COMPLETED', 'Completed'
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bookings')
-    field = models.ForeignKey(Field, on_delete=models.CASCADE, related_name='bookings')
+    court = models.ForeignKey('courts.Court', on_delete=models.CASCADE, related_name='bookings')
     date = models.DateField()
     start_time = models.TimeField()
     end_time = models.TimeField()
     total_price = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    commission = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
@@ -55,7 +58,7 @@ class Booking(models.Model):
             models.Index(fields=['date']),
             models.Index(fields=['status']),
             models.Index(fields=['user', 'date']),
-            models.Index(fields=['field', 'date']),
+            models.Index(fields=['court', 'date']),
             models.Index(fields=['deleted_at']),
         ]
 
@@ -68,4 +71,4 @@ class Booking(models.Model):
         self.save(update_fields=['deleted_at'])
 
     def __str__(self):
-        return f"Booking {self.field.name} - {self.date} ({self.start_time} - {self.end_time})"
+        return f"Booking {self.court.name} - {self.date} ({self.start_time} - {self.end_time})"

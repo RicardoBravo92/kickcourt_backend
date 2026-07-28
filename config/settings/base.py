@@ -24,6 +24,8 @@ INSTALLED_APPS = [
     'accounts',
     'fields',
     'bookings',
+    'courts',
+    'vendors',
 ]
 
 MIDDLEWARE = [
