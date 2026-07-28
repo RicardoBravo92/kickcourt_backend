@@ -59,3 +59,7 @@ python manage.py test
 ## License
 
 MIT
+
+---
+
+**Frontend**: [github.com/RicardoBravo92/kickcourt_frontend](https://github.com/RicardoBravo92/kickcourt_frontend)
