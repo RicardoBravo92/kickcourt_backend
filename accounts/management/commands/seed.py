@@ -11,16 +11,16 @@ from bookings.models import Booking
 User = get_user_model()
 
 FIELDS_DATA = [
-    {"name": "Cancha El Gol", "field_type": 5, "surface": "SYNTHETIC", "price_per_hour": 25.00, "description": "Cancha sintetica de 5 vs 5 ideal para partidos rapidos."},
-    {"name": "Cancha La Red", "field_type": 5, "surface": "SYNTHETIC", "price_per_hour": 28.00, "description": "Cancha sintetica con iluminacion nocturna."},
-    {"name": "Cancha River Plate", "field_type": 7, "surface": "NATURAL", "price_per_hour": 40.00, "description": "Cancha de cesped natural de 7 vs 7."},
-    {"name": "Cancha Boca Juniors", "field_type": 7, "surface": "SYNTHETIC", "price_per_hour": 35.00, "description": "Cancha sintetica amplia con gradas."},
-    {"name": "Cancha Estadio Central", "field_type": 11, "surface": "NATURAL", "price_per_hour": 70.00, "description": "Cancha profesional de 11 vs 11 con cesped natural."},
-    {"name": "Cancha Futsal Arena", "field_type": 5, "surface": "INDOOR", "price_per_hour": 32.00, "description": "Cancha techada con piso de parquet."},
-    {"name": "Cancha Deportiva Norte", "field_type": 7, "surface": "NATURAL", "price_per_hour": 38.00, "description": "Cancha de cesped natural en zona norte."},
-    {"name": "Cancha Sur Soccer", "field_type": 5, "surface": "SYNTHETIC", "price_per_hour": 22.00, "description": "Cancha sintetica economica y accesible."},
-    {"name": "Cancha Club Mayor", "field_type": 11, "surface": "SYNTHETIC", "price_per_hour": 80.00, "description": "Cancha sintetica profesional con vestuarios."},
-    {"name": "Cancha Indoor Pro", "field_type": 5, "surface": "INDOOR", "price_per_hour": 30.00, "description": "Cancha techada con excelente iluminacion."},
+    {"name": "Goal Arena", "field_type": 5, "surface": "SYNTHETIC", "price_per_hour": 25.00, "description": "5v5 synthetic field ideal for quick matches."},
+    {"name": "Net Field", "field_type": 5, "surface": "SYNTHETIC", "price_per_hour": 28.00, "description": "Synthetic field with night lighting."},
+    {"name": "River Plate Field", "field_type": 7, "surface": "NATURAL", "price_per_hour": 40.00, "description": "7v7 natural grass field."},
+    {"name": "Boca Juniors Field", "field_type": 7, "surface": "SYNTHETIC", "price_per_hour": 35.00, "description": "Spacious synthetic field with bleachers."},
+    {"name": "Central Stadium", "field_type": 11, "surface": "NATURAL", "price_per_hour": 70.00, "description": "Professional 11v11 field with natural grass."},
+    {"name": "Futsal Arena", "field_type": 5, "surface": "INDOOR", "price_per_hour": 32.00, "description": "Indoor court with parquet flooring."},
+    {"name": "North Sports Field", "field_type": 7, "surface": "NATURAL", "price_per_hour": 38.00, "description": "Natural grass field in the north side."},
+    {"name": "South Soccer", "field_type": 5, "surface": "SYNTHETIC", "price_per_hour": 22.00, "description": "Affordable and accessible synthetic field."},
+    {"name": "Club Mayor Field", "field_type": 11, "surface": "SYNTHETIC", "price_per_hour": 80.00, "description": "Professional synthetic field with locker rooms."},
+    {"name": "Indoor Pro", "field_type": 5, "surface": "INDOOR", "price_per_hour": 30.00, "description": "Indoor court with excellent lighting."},
 ]
 
 USERS_DATA = [
