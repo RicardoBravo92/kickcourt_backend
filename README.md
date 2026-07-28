@@ -1,12 +1,13 @@
-# Soccer Booking Backend
+# KickCourt Backend
 
-REST API for managing soccer field bookings, built with Django REST Framework.
+REST API for managing multi-sport court bookings, built with Django REST Framework.
 
 ## Features
 
 - JWT Authentication (login, register, refresh token)
-- Role-based access (Admin, Client)
-- Soccer field catalog (CRUD for admins)
+- Role-based access (Client, Vendor, Admin)
+- Multi-sport court catalog (Football, Padel, Tennis, Basketball, Volleyball, Hockey)
+- Vendor marketplace with commission tracking
 - Booking management with conflict detection
 - Filtering, search, and pagination
 
@@ -22,8 +23,8 @@ REST API for managing soccer field bookings, built with Django REST Framework.
 
 ```bash
 # Clone repository
-git clone git@github.com:RicardoBravo92/soccer_booking_backend.git
-cd soccer_booking_backend
+git clone git@github.com:RicardoBravo92/kickcourt_backend.git
+cd kickcourt_backend
 
 # Create virtual environment
 python -m venv venv
