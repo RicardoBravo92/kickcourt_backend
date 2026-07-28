@@ -4,6 +4,9 @@ from accounts.models import User
 
 
 class BookingQuerySet(models.QuerySet):
+    def active(self):
+        return self.filter(deleted_at__isnull=True)
+
     def pending(self):
         return self.filter(status=Booking.Status.PENDING)
 

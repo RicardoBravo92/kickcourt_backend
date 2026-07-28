@@ -19,7 +19,7 @@ class VendorViewSet(viewsets.ModelViewSet):
     search_fields = ['business_name', 'user__username']
 
     def get_permissions(self):
-        if self.action in ('list', 'retrieve'):
+        if self.action in ('list', 'retrieve', 'dashboard'):
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdmin()]
 

@@ -7,7 +7,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import Booking
 from .serializers import BookingSerializer, BookingListSerializer
 from .services import send_booking_confirmation, send_booking_cancelation
-from accounts.permissions import IsAdmin
+from accounts.permissions import IsAdmin, IsAdminOrVendor
 
 User = get_user_model()
 
@@ -70,7 +70,18 @@ class BookingViewSet(viewsets.ModelViewSet):
         send_booking_cancelation(booking)
         return Response({'status': 'cancelled'})
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdmin])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdminOrVendor])
+    def complete(self, request, pk=None):
+        booking = self.get_object()
+        if booking.status == Booking.Status.COMPLETED:
+            return Response({'error': 'Booking already completed'}, status=status.HTTP_400_BAD_REQUEST)
+        if booking.status == Booking.Status.CANCELLED:
+            return Response({'error': 'Cannot complete a cancelled booking'}, status=status.HTTP_400_BAD_REQUEST)
+        booking.status = Booking.Status.COMPLETED
+        booking.save()
+        return Response({'status': 'completed'})
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdminOrVendor])
     def restore(self, request, pk=None):
         booking = self.get_object()
         booking.restore()

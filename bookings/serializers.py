@@ -26,8 +26,9 @@ class BookingSerializer(serializers.ModelSerializer):
 
 
 class BookingListSerializer(serializers.ModelSerializer):
+    user = serializers.ReadOnlyField(source='user.username')
     court_name = serializers.CharField(source='court.name', read_only=True)
 
     class Meta:
         model = Booking
-        fields = ('id', 'court_name', 'date', 'start_time', 'end_time', 'status', 'total_price', 'commission')
+        fields = ('id', 'user', 'court_name', 'date', 'start_time', 'end_time', 'status', 'total_price', 'commission')
