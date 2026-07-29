@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.generic import TemplateView
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -31,6 +32,10 @@ urlpatterns = [
     path('api/', include('bookings.urls')),
     path('api/', include('courts.urls')),
     path('api/', include('vendors.urls')),
+
+    # SEO static pages
+    path('robots.txt', TemplateView.as_view(template_name='robots.txt', content_type='text/plain')),
+    path('sitemap.xml', TemplateView.as_view(template_name='sitemap.xml', content_type='application/xml')),
 ]
 
 if settings.DEBUG:

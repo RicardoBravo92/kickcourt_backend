@@ -27,8 +27,12 @@ class BookingSerializer(serializers.ModelSerializer):
 
 class BookingListSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
+    user_id = serializers.ReadOnlyField(source='user.id')
+    user_email = serializers.ReadOnlyField(source='user.email')
+    user_phone = serializers.ReadOnlyField(source='user.phone_number')
+    user_role = serializers.ReadOnlyField(source='user.role')
     court_name = serializers.CharField(source='court.name', read_only=True)
 
     class Meta:
         model = Booking
-        fields = ('id', 'user', 'court_name', 'date', 'start_time', 'end_time', 'status', 'total_price', 'commission')
+        fields = ('id', 'user', 'user_id', 'user_email', 'user_phone', 'user_role', 'court_name', 'date', 'start_time', 'end_time', 'status', 'total_price', 'commission')

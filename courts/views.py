@@ -13,7 +13,7 @@ class CourtViewSet(viewsets.ModelViewSet):
     queryset = Court.objects.active()
     serializer_class = CourtSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['sport_type', 'surface', 'is_active']
+    filterset_fields = ['sport_type', 'surface', 'is_active', 'vendor']
     search_fields = ['name', 'description']
     ordering_fields = ['name', 'price_per_hour', 'sport_type']
     ordering = ['name']

@@ -36,7 +36,6 @@ class BookingViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             return BookingListSerializer
         return BookingSerializer
-
     def perform_create(self, serializer):
         booking = serializer.save(user=self.request.user)
         from .services import calculate_total_price, calculate_commission
@@ -45,6 +44,11 @@ class BookingViewSet(viewsets.ModelViewSet):
             booking.commission = calculate_commission(booking.total_price, booking.court.vendor.commission_rate)
         booking.save(update_fields=['total_price', 'commission'])
         send_booking_confirmation(booking)
+
+    def create(self, request, *args, **kwargs):
+        if request.user.role == User.Roles.VENDOR:
+            return Response({'error': 'Vendors cannot create bookings'}, status=status.HTTP_403_FORBIDDEN)
+        return super().create(request, *args, **kwargs)
 
     @action(detail=False, methods=['get'])
     def my_bookings(self, request):
@@ -74,7 +78,7 @@ class BookingViewSet(viewsets.ModelViewSet):
     def complete(self, request, pk=None):
         booking = self.get_object()
         if booking.status == Booking.Status.COMPLETED:
-            return Response({'error': 'Booking already completed'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'status': 'already_completed'})
         if booking.status == Booking.Status.CANCELLED:
             return Response({'error': 'Cannot complete a cancelled booking'}, status=status.HTTP_400_BAD_REQUEST)
         booking.status = Booking.Status.COMPLETED
