@@ -51,8 +51,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if options["clear"]:
             self.stdout.write("Clearing existing data...")
-            Booking.objects.all().hard_delete()
-            Court.objects.all().hard_delete()
+            Booking.objects.all().delete()
+            Court.objects.all().delete()
             Vendor.objects.all().delete()
             User.objects.filter(is_superuser=False).delete()
 
@@ -184,7 +184,7 @@ class Command(BaseCommand):
             total_price = Decimal(str(court.price_per_hour)) * Decimal(str(duration))
             commission = Decimal('0')
             if court.vendor and court.vendor.is_approved:
-                commission = total_price * court.vendor.commission_rate / Decimal('100')
+                commission = total_price * Decimal(str(court.vendor.commission_rate)) / Decimal('100')
 
             booking, created = Booking.objects.get_or_create(
                 user=user,
