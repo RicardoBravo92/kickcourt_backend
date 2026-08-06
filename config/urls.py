@@ -13,7 +13,7 @@ from drf_spectacular.views import (
     SpectacularRedocView,
 )
 
-from accounts.views import CustomTokenObtainPairView
+from accounts.views.auth import CustomTokenObtainPairView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
