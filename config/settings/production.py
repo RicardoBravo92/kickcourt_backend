@@ -15,6 +15,17 @@ DATABASES['default']['OPTIONS'] = {
     'sslmode': os.getenv('DB_SSLMODE', 'require'),
 }
 
+# Use local memory cache (Render free tier has no Redis)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    }
+}
+
+# Disable Celery (requires Redis)
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
