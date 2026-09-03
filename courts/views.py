@@ -19,10 +19,8 @@ class CourtViewSet(viewsets.ModelViewSet):
     ordering = ['name']
 
     def get_permissions(self):
-        if self.action in ('list', 'retrieve'):
+        if self.action in ('list', 'retrieve', 'availability'):
             return [AllowAny()]
-        if self.action == 'availability':
-            return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminOrVendor()]
 
     def get_queryset(self):
