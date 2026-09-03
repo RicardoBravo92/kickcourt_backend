@@ -19,6 +19,25 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = UserCreateSerializer
 
 
+class CheckAvailabilityView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        username = request.data.get('username', '').strip()
+        email = request.data.get('email', '').strip()
+        result = {'username_available': None, 'email_available': None}
+
+        if username:
+            exists = User.objects.filter(username__iexact=username).exists()
+            result['username_available'] = not exists
+
+        if email:
+            exists = User.objects.filter(email__iexact=email).exists()
+            result['email_available'] = not exists
+
+        return Response(result, status=status.HTTP_200_OK)
+
+
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
