@@ -1,4 +1,5 @@
 import resend
+import logging
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
@@ -10,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class ForgotPasswordView(APIView):
@@ -42,8 +44,8 @@ class ForgotPasswordView(APIView):
                     <p>If you didn't request this, ignore this email.</p>
                 """
             })
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Failed to send reset email: {e}")
 
         return Response({'detail': 'If an account with this email exists, a reset link has been sent.'}, status=status.HTTP_200_OK)
 
