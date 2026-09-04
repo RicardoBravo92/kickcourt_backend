@@ -9,11 +9,18 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema
+from ..serializers import DetailResponseSerializer, ForgotPasswordSerializer, ResetPasswordSerializer
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
+@extend_schema(
+    description='Request a password reset link. Always returns the same message to avoid user enumeration.',
+    request=ForgotPasswordSerializer,
+    responses={200: DetailResponseSerializer},
+)
 class ForgotPasswordView(APIView):
     permission_classes = [AllowAny]
 
@@ -50,6 +57,11 @@ class ForgotPasswordView(APIView):
         return Response({'detail': 'If an account with this email exists, a reset link has been sent.'}, status=status.HTTP_200_OK)
 
 
+@extend_schema(
+    description='Validate the reset link and set a new password.',
+    request=ResetPasswordSerializer,
+    responses={200: DetailResponseSerializer, 400: DetailResponseSerializer},
+)
 class ResetPasswordView(APIView):
     permission_classes = [AllowAny]
 

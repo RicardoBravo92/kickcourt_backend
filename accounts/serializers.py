@@ -99,3 +99,27 @@ class ChangePasswordSerializer(serializers.Serializer):
         if not user.check_password(value):
             raise serializers.ValidationError("Old password is incorrect.")
         return value
+
+
+class DetailResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    uid = serializers.CharField(help_text='Base64-encoded user id from the reset link.')
+    token = serializers.CharField(help_text='Password reset token from the reset link.')
+    new_password = serializers.CharField(write_only=True, min_length=8)
+
+
+class CheckAvailabilitySerializer(serializers.Serializer):
+    username = serializers.CharField(required=False, allow_blank=True)
+    email = serializers.EmailField(required=False, allow_blank=True)
+
+
+class CheckAvailabilityResponseSerializer(serializers.Serializer):
+    username_available = serializers.BooleanField(required=False, allow_null=True)
+    email_available = serializers.BooleanField(required=False, allow_null=True)

@@ -4,7 +4,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.views import TokenObtainPairView
-from ..serializers import UserSerializer, UserCreateSerializer, UserProfileSerializer, ChangePasswordSerializer, CustomTokenObtainPairSerializer
+from drf_spectacular.utils import extend_schema, extend_schema_view
+from ..serializers import UserSerializer, UserCreateSerializer, UserProfileSerializer, ChangePasswordSerializer, CustomTokenObtainPairSerializer, DetailResponseSerializer, CheckAvailabilitySerializer, CheckAvailabilityResponseSerializer
 
 User = get_user_model()
 
@@ -19,6 +20,10 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = UserCreateSerializer
 
 
+@extend_schema(
+    request=CheckAvailabilitySerializer,
+    responses={200: CheckAvailabilityResponseSerializer},
+)
 class CheckAvailabilityView(APIView):
     permission_classes = [AllowAny]
 
@@ -38,6 +43,17 @@ class CheckAvailabilityView(APIView):
         return Response(result, status=status.HTTP_200_OK)
 
 
+@extend_schema_view(
+    get=extend_schema(
+        description='Retrieve the authenticated user profile.',
+        responses={200: UserProfileSerializer},
+    ),
+    patch=extend_schema(
+        description='Partially update the authenticated user profile.',
+        request=UserProfileSerializer,
+        responses={200: UserProfileSerializer},
+    ),
+)
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -52,6 +68,11 @@ class ProfileView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(
+    description='Change the authenticated user password.',
+    request=ChangePasswordSerializer,
+    responses={200: DetailResponseSerializer},
+)
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
 
