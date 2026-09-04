@@ -29,6 +29,6 @@ services:
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM_EMAIL
-        value: noreply@kickcourt.com
+        value: onboarding@resend.dev
       - key: FRONTEND_URL
         sync: false
