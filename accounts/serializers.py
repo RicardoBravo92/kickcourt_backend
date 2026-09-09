@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -18,6 +18,10 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                 user = User.objects.get(email=username_or_email)
                 attrs['username'] = user.username
             except ObjectDoesNotExist:
+                raise serializers.ValidationError(
+                    {'detail': 'No account found with this email.'}
+                )
+            except MultipleObjectsReturned:
                 raise serializers.ValidationError(
                     {'detail': 'No account found with this email.'}
                 )
@@ -63,10 +67,18 @@ class UserCreateSerializer(serializers.ModelSerializer):
             })
         return data
 
+    def validate_email(self, value):
+        email = value.lower()
+        if User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError('A user with this email already exists.')
+        return email
+
     def create(self, validated_data):
         validated_data.pop('password_confirm')
         password = validated_data.pop('password')
         validated_data['role'] = User.Roles.CLIENT
+        if validated_data.get('email'):
+            validated_data['email'] = validated_data['email'].lower()
         user = User.objects.create(**validated_data)
         user.set_password(password)
         user.save()

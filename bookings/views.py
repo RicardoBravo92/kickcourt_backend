@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Booking
 from .serializers import BookingSerializer, BookingListSerializer
@@ -45,10 +46,28 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking.save(update_fields=['total_price', 'commission'])
         send_booking_confirmation(booking)
 
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        from .services import calculate_total_price, calculate_commission
+        previous_total = calculate_total_price(instance.court, instance.start_time, instance.end_time)
+        booking = serializer.save()
+        new_total = calculate_total_price(booking.court, booking.start_time, booking.end_time)
+        if new_total != previous_total:
+            booking.total_price = new_total
+            booking.commission = 0
+            if booking.court.vendor and booking.court.vendor.is_approved:
+                booking.commission = calculate_commission(new_total, booking.court.vendor.commission_rate)
+            booking.save(update_fields=['total_price', 'commission'])
+
     def create(self, request, *args, **kwargs):
         if request.user.role == User.Roles.VENDOR:
             return Response({'error': 'Vendors cannot create bookings'}, status=status.HTTP_403_FORBIDDEN)
-        return super().create(request, *args, **kwargs)
+        with transaction.atomic():
+            return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        with transaction.atomic():
+            return super().update(request, *args, **kwargs)
 
     @action(detail=False, methods=['get'])
     def my_bookings(self, request):
@@ -64,11 +83,22 @@ class BookingViewSet(viewsets.ModelViewSet):
         serializer = BookingListSerializer(page, many=True)
         return self.get_paginated_response(serializer.data)
 
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdminOrVendor])
+    def confirm(self, request, pk=None):
+        booking = self.get_object()
+        if booking.status == Booking.Status.CANCELLED:
+            return Response({'error': 'Cannot confirm a cancelled booking'}, status=status.HTTP_400_BAD_REQUEST)
+        booking.status = Booking.Status.CONFIRMED
+        booking.save()
+        return Response({'status': 'confirmed'})
+
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
         booking = self.get_object()
         if booking.status == Booking.Status.CANCELLED:
             return Response({'error': 'Booking already cancelled'}, status=status.HTTP_400_BAD_REQUEST)
+        if booking.status == Booking.Status.COMPLETED:
+            return Response({'error': 'Cannot cancel a completed booking'}, status=status.HTTP_400_BAD_REQUEST)
         booking.status = Booking.Status.CANCELLED
         booking.save()
         send_booking_cancelation(booking)

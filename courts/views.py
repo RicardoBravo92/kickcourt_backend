@@ -4,9 +4,12 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
+from django.contrib.auth import get_user_model
 from .models import Court, CourtSchedule, CourtBlock
 from .serializers import CourtSerializer, CourtListSerializer, CourtScheduleSerializer, CourtBlockSerializer
 from accounts.permissions import IsAdmin, IsAdminOrVendor
+
+User = get_user_model()
 
 
 class CourtViewSet(viewsets.ModelViewSet):
@@ -26,6 +29,12 @@ class CourtViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = Court.objects.active()
         user = self.request.user
+        if self.action in ('update', 'partial_update', 'destroy'):
+            if user.role == User.Roles.ADMIN:
+                return qs
+            if user.role == User.Roles.VENDOR and hasattr(user, 'vendor_profile') and user.vendor_profile:
+                return qs.filter(vendor=user.vendor_profile)
+            return qs.none()
         if self.request.query_params.get('my_courts') == 'true' and user.is_authenticated and hasattr(user, 'vendor_profile') and user.vendor_profile:
             qs = qs.filter(vendor=user.vendor_profile)
         sport = self.request.query_params.get('sport_type')
@@ -46,10 +55,14 @@ class CourtViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
-        vendor = None
-        if hasattr(user, 'vendor_profile'):
-            vendor = user.vendor_profile
+        if user.role == User.Roles.ADMIN:
+            serializer.save(vendor=serializer.validated_data.get('vendor'))
+            return
+        vendor = getattr(user, 'vendor_profile', None)
         serializer.save(vendor=vendor)
+
+    def perform_update(self, serializer):
+        serializer.save(vendor=self.get_object().vendor)
 
     @action(detail=True, methods=['get'])
     def availability(self, request, pk=None):

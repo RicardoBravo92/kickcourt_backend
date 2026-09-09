@@ -3,6 +3,7 @@ import logging
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
+from django.core.exceptions import MultipleObjectsReturned
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from rest_framework import status
@@ -31,7 +32,7 @@ class ForgotPasswordView(APIView):
 
         try:
             user = User.objects.get(email=email)
-        except User.DoesNotExist:
+        except (User.DoesNotExist, MultipleObjectsReturned):
             return Response({'detail': 'If an account with this email exists, a reset link has been sent.'}, status=status.HTTP_200_OK)
 
         token = default_token_generator.make_token(user)

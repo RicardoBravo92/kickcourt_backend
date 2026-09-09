@@ -2,6 +2,7 @@ import logging
 from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.db import transaction
 from .models import Booking
 
 logger = logging.getLogger(__name__)
@@ -14,19 +15,32 @@ def validate_booking_slots(court, date, start_time, end_time, exclude_pk=None):
     if date < timezone.now().date():
         raise ValidationError({'date': 'Cannot book dates in the past.'})
 
-    overlapping = Booking.objects.filter(
-        court=court,
-        date=date,
-        status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
-        start_time__lt=end_time,
-        end_time__gt=start_time,
-    )
+    from courts.models import Court, CourtBlock
+    with transaction.atomic():
+        Court.objects.select_for_update().get(pk=court.pk)
 
-    if exclude_pk:
-        overlapping = overlapping.exclude(pk=exclude_pk)
+        blocked = CourtBlock.objects.filter(
+            court_id=court.pk,
+            date=date,
+            start_time__lt=end_time,
+            end_time__gt=start_time,
+        )
+        if blocked.exists():
+            raise ValidationError('This court is blocked for the selected time slot.')
 
-    if overlapping.exists():
-        raise ValidationError('This court is already booked for the selected time slot.')
+        overlapping = Booking.objects.filter(
+            court=court,
+            date=date,
+            status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
+            start_time__lt=end_time,
+            end_time__gt=start_time,
+        )
+
+        if exclude_pk:
+            overlapping = overlapping.exclude(pk=exclude_pk)
+
+        if overlapping.exists():
+            raise ValidationError('This court is already booked for the selected time slot.')
 
 
 def calculate_total_price(court, start_time, end_time):
