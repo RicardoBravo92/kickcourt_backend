@@ -1,14 +1,16 @@
+import csv
+from django.http import HttpResponse
 from django.utils import timezone
-from django.db.models import Count, Sum, Q, F
+from django.db.models import Count, Sum, Q
 from datetime import timedelta
 from accounts.models import User
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 
 
 def get_dashboard_stats():
-    today = timezone.now().date()
+    today = timezone.localdate()
     thirty_days_ago = today - timedelta(days=30)
     six_months_ago = today - timedelta(days=180)
 
@@ -93,40 +95,37 @@ def get_dashboard_stats():
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsAdminUser])
 def dashboard_stats(request):
     return Response(get_dashboard_stats())
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsAdminUser])
 def bookings_export_csv_view(request):
+    from bookings.models import Booking
+
     filters = {
-        'start_date': request.query_params.get('start_date'),
-        'end_date': request.query_params.get('end_date'),
+        'date_from': request.query_params.get('date_from'),
+        'date_to': request.query_params.get('date_to'),
         'status': request.query_params.get('status'),
         'court': request.query_params.get('court'),
         'user': request.query_params.get('user'),
     }
     filters = {k: v for k, v in filters.items() if v}
-    return bookings_export_csv(filters)
-    import csv
-    from django.http import HttpResponse
-    from bookings.models import Booking
 
     bookings = Booking.objects.active().with_court().with_user()
 
-    if filters:
-        if filters.get('start_date'):
-            bookings = bookings.filter(date__gte=filters['start_date'])
-        if filters.get('end_date'):
-            bookings = bookings.filter(date__lte=filters['end_date'])
-        if filters.get('status'):
-            bookings = bookings.filter(status=filters['status'])
-        if filters.get('court'):
-            bookings = bookings.filter(court_id=filters['court'])
-        if filters.get('user'):
-            bookings = bookings.filter(user_id=filters['user'])
+    if filters.get('date_from'):
+        bookings = bookings.filter(date__gte=filters['date_from'])
+    if filters.get('date_to'):
+        bookings = bookings.filter(date__lte=filters['date_to'])
+    if filters.get('status'):
+        bookings = bookings.filter(status=filters['status'])
+    if filters.get('court'):
+        bookings = bookings.filter(court_id=filters['court'])
+    if filters.get('user'):
+        bookings = bookings.filter(user_id=filters['user'])
 
     bookings = bookings.select_related('user', 'court')
 
@@ -135,7 +134,7 @@ def bookings_export_csv_view(request):
 
     writer = csv.writer(response)
     writer.writerow([
-        'ID', 'User', 'Court', 'Date', 'Start Time', 'End Time',
+        'ID', 'User', 'Email', 'Court', 'Date', 'Start Time', 'End Time',
         'Status', 'Total Price', 'Commission', 'Created At'
     ])
 
@@ -143,10 +142,11 @@ def bookings_export_csv_view(request):
         writer.writerow([
             booking.id,
             booking.user.username,
+            booking.user.email,
             booking.court.name,
             booking.date,
-            booking.start_time,
-            booking.end_time,
+            booking.start_time.strftime('%H:%M'),
+            booking.end_time.strftime('%H:%M'),
             booking.status,
             booking.total_price,
             booking.commission,

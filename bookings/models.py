@@ -23,10 +23,10 @@ class BookingQuerySet(models.QuerySet):
         return self.filter(court__vendor=vendor)
 
     def upcoming(self):
-        return self.filter(date__gte=timezone.now().date())
+        return self.filter(date__gte=timezone.localdate())
 
     def past(self):
-        return self.filter(date__lt=timezone.now().date())
+        return self.filter(date__lt=timezone.localdate())
 
     def with_court(self):
         return self.select_related('court')

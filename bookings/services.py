@@ -12,7 +12,7 @@ def validate_booking_slots(court, date, start_time, end_time, exclude_pk=None):
     if start_time >= end_time:
         raise ValidationError({'end_time': 'End time must be after start time.'})
 
-    if date < timezone.now().date():
+    if date < timezone.localdate():
         raise ValidationError({'date': 'Cannot book dates in the past.'})
 
     from courts.models import Court, CourtBlock
@@ -73,6 +73,19 @@ def create_booking(user, court, date, start_time, end_time):
     booking.full_clean()
     booking.save()
     return booking
+
+
+def send_booking_received(booking):
+    from .tasks import send_booking_received_email
+    send_booking_received_email.delay(
+        user_email=booking.user.email,
+        user_username=booking.user.username,
+        court_name=booking.court.name,
+        date=str(booking.date),
+        start_time=str(booking.start_time),
+        end_time=str(booking.end_time),
+        total_price=str(booking.total_price),
+    )
 
 
 def send_booking_confirmation(booking):

@@ -7,7 +7,7 @@ from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Booking
 from .serializers import BookingSerializer, BookingListSerializer
-from .services import send_booking_confirmation, send_booking_cancelation
+from .services import send_booking_received, send_booking_confirmation, send_booking_cancelation
 from accounts.permissions import IsAdmin, IsAdminOrVendor
 
 User = get_user_model()
@@ -44,7 +44,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         if booking.court.vendor and booking.court.vendor.is_approved:
             booking.commission = calculate_commission(booking.total_price, booking.court.vendor.commission_rate)
         booking.save(update_fields=['total_price', 'commission'])
-        send_booking_confirmation(booking)
+        send_booking_received(booking)
 
     def perform_update(self, serializer):
         instance = self.get_object()
@@ -90,6 +90,7 @@ class BookingViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Cannot confirm a cancelled booking'}, status=status.HTTP_400_BAD_REQUEST)
         booking.status = Booking.Status.CONFIRMED
         booking.save()
+        send_booking_confirmation(booking)
         return Response({'status': 'confirmed'})
 
     @action(detail=True, methods=['post'])
