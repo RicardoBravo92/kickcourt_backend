@@ -48,11 +48,11 @@ def calculate_total_price(court, start_time, end_time):
     start = datetime.combine(timezone.now().date(), start_time)
     end = datetime.combine(timezone.now().date(), end_time)
     hours = Decimal(str((end - start).total_seconds() / 3600))
-    return Decimal(str(court.price_per_hour)) * hours
+    return (Decimal(str(court.price_per_hour)) * hours).quantize(Decimal('0.01'))
 
 
 def calculate_commission(total_price, commission_rate):
-    return total_price * commission_rate / Decimal('100')
+    return (total_price * commission_rate / Decimal('100')).quantize(Decimal('0.01'))
 
 
 def create_booking(user, court, date, start_time, end_time):

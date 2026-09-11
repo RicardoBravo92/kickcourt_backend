@@ -11,3 +11,6 @@ venv/
 *.egg-info/
 dist/
 build/
+test_db.sqlite3
+htmlcov/
+.coverage
