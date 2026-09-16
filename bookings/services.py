@@ -17,7 +17,12 @@ def validate_booking_slots(court, date, start_time, end_time, exclude_pk=None):
 
     from courts.models import Court, CourtBlock
     with transaction.atomic():
-        Court.objects.select_for_update().get(pk=court.pk)
+        try:
+            Court.objects.filter(
+                pk=court.pk, is_active=True, deleted_at__isnull=True
+            ).select_for_update().get()
+        except Court.DoesNotExist:
+            raise ValidationError('This court is not available for booking.')
 
         blocked = CourtBlock.objects.filter(
             court_id=court.pk,
@@ -31,6 +36,7 @@ def validate_booking_slots(court, date, start_time, end_time, exclude_pk=None):
         overlapping = Booking.objects.filter(
             court=court,
             date=date,
+            deleted_at__isnull=True,
             status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
             start_time__lt=end_time,
             end_time__gt=start_time,

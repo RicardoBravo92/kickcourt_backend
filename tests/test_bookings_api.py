@@ -175,6 +175,56 @@ class TestBookingScoping:
         assert response.data['count'] == 1
 
 
+class TestSoftDeleteLifecycle:
+    def test_soft_deleted_booking_frees_slot(self, client_api_client, court):
+        response = client_api_client.post(BOOKINGS_URL, future_booking_payload(court))
+        assert response.status_code == 201
+        booking_id = response.data['id']
+
+        assert client_api_client.delete(f'{BOOKINGS_URL}{booking_id}/').status_code == 204
+
+        response = client_api_client.post(BOOKINGS_URL, future_booking_payload(court))
+        assert response.status_code == 201
+
+    def test_deleted_endpoint_lists_soft_deleted(self, admin_api_client, client_user, court):
+        booking = BookingFactory(user=client_user, court=court)
+        booking.delete()
+
+        response = admin_api_client.get(f'{BOOKINGS_URL}deleted/')
+        assert response.status_code == 200
+        ids = [item['id'] for item in response.data['results']]
+        assert booking.id in ids
+
+    def test_admin_can_restore_deleted_booking(self, admin_api_client, client_user, court):
+        booking = BookingFactory(user=client_user, court=court)
+        booking.delete()
+
+        response = admin_api_client.post(f'{BOOKINGS_URL}{booking.id}/restore/')
+        assert response.status_code == 200
+        booking.refresh_from_db()
+        assert booking.deleted_at is None
+
+    def test_client_cannot_restore_booking(self, client_api_client, client_user, court):
+        booking = BookingFactory(user=client_user, court=court)
+        booking.delete()
+
+        response = client_api_client.post(f'{BOOKINGS_URL}{booking.id}/restore/')
+        assert response.status_code == 403
+
+    def test_cannot_book_inactive_court(self, client_api_client, court):
+        court.is_active = False
+        court.save(update_fields=['is_active'])
+
+        response = client_api_client.post(BOOKINGS_URL, future_booking_payload(court))
+        assert response.status_code == 400
+
+    def test_cannot_book_soft_deleted_court(self, client_api_client, court):
+        court.delete()
+
+        response = client_api_client.post(BOOKINGS_URL, future_booking_payload(court))
+        assert response.status_code == 400
+
+
 class TestDashboardExport:
     def test_admin_can_export_csv(self, admin_api_client):
         response = admin_api_client.get('/api/dashboard/export/csv/')

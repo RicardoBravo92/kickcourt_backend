@@ -23,15 +23,21 @@ class BookingViewSet(viewsets.ModelViewSet):
     ordering = ['-date', '-start_time']
 
     def get_queryset(self):
+        # `restore` must be able to reach soft-deleted bookings, so it uses the
+        # unfiltered manager instead of the default active-only queryset.
+        return self._scoped_queryset(include_deleted=self.action == 'restore')
+
+    def _scoped_queryset(self, include_deleted=False):
         user = self.request.user
+        bookings = Booking.objects if include_deleted else Booking.objects.active()
         if user.role == User.Roles.ADMIN:
-            return Booking.objects.active().with_court().with_user()
+            return bookings.with_court().with_user()
         if user.role == User.Roles.VENDOR:
             from vendors.models import Vendor
             vendor = Vendor.objects.filter(user=user).first()
             if vendor:
-                return Booking.objects.active().for_vendor(vendor).with_court().with_user()
-        return Booking.objects.active().for_user(user).with_court()
+                return bookings.for_vendor(vendor).with_court().with_user()
+        return bookings.for_user(user).with_court()
 
     def get_serializer_class(self):
         if self.action == 'list':

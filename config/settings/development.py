@@ -1,5 +1,8 @@
 from .base import *
 
+if not SECRET_KEY:
+    SECRET_KEY = 'django-insecure-development-only-key-do-not-use-in-production'
+
 DEBUG = True
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 

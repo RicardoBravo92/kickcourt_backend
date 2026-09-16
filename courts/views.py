@@ -86,6 +86,7 @@ class CourtViewSet(viewsets.ModelViewSet):
 
         bookings = Booking.objects.filter(
             court=court, date=date,
+            deleted_at__isnull=True,
             status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED]
         )
         booked_hours = set()

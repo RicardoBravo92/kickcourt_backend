@@ -1,9 +1,24 @@
+from django.core.exceptions import ImproperlyConfigured
+
 from .base import *
 
 DEBUG = False
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS').split(',')
+
+if not SECRET_KEY:
+    raise ImproperlyConfigured('DJANGO_SECRET_KEY environment variable must be set in production.')
+if len(SECRET_KEY) < 32 or SECRET_KEY.startswith('django-insecure'):
+    raise ImproperlyConfigured(
+        'DJANGO_SECRET_KEY is insecure: use a strong, randomly generated secret of at least 32 characters.'
+    )
+
+_allowed_hosts = os.getenv('ALLOWED_HOSTS') or os.getenv('DJANGO_ALLOWED_HOSTS') or ''
+ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts.split(',') if host.strip()]
+if not ALLOWED_HOSTS:
+    raise ImproperlyConfigured('ALLOWED_HOSTS environment variable must be set in production.')
 
 SECURE_SSL_REDIRECT = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_HSTS_SECONDS = 31536000

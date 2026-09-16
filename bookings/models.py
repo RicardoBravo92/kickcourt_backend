@@ -7,6 +7,9 @@ class BookingQuerySet(models.QuerySet):
     def active(self):
         return self.filter(deleted_at__isnull=True)
 
+    def deleted(self):
+        return self.filter(deleted_at__isnull=False)
+
     def pending(self):
         return self.filter(status=Booking.Status.PENDING)
 

@@ -3,7 +3,7 @@ from django.utils import timezone
 from datetime import time, timedelta
 
 from courts.models import Court, CourtBlock
-from tests.factories import CourtFactory, CourtBlockFactory
+from tests.factories import BookingFactory, CourtFactory, CourtBlockFactory
 
 COURTS_URL = '/api/courts/'
 
@@ -93,6 +93,20 @@ class TestAvailability:
         assert slots[10] == 'blocked'
         assert slots[11] == 'blocked'
         assert slots[9] == 'available'
+
+    def test_soft_deleted_booking_does_not_block(self, api_client, user, court):
+        tomorrow = timezone.localdate() + timedelta(days=1)
+        booking = BookingFactory(
+            user=user, court=court, date=tomorrow,
+            start_time=time(10, 0), end_time=time(12, 0),
+        )
+        booking.delete()
+
+        response = api_client.get(f'{COURTS_URL}{court.id}/availability/?date={tomorrow}')
+        assert response.status_code == 200
+        slots = {slot['hour']: slot['status'] for slot in response.data['slots']}
+        assert slots[10] == 'available'
+        assert slots[11] == 'available'
 
     def test_requires_date_param(self, api_client, court):
         response = api_client.get(f'{COURTS_URL}{court.id}/availability/')

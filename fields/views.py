@@ -34,6 +34,13 @@ class FieldViewSet(viewsets.ModelViewSet):
             return [AllowAny()]
         return [IsAuthenticated(), IsAdmin()]
 
+    def get_queryset(self):
+        # `restore` operates on soft-deleted rows, which the default
+        # active-only queryset would filter out.
+        if self.action == 'restore':
+            return Field.objects.deleted()
+        return super().get_queryset()
+
     def list(self, request, *args, **kwargs):
         if request.query_params:
             return super().list(request, *args, **kwargs)
