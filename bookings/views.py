@@ -2,6 +2,7 @@ from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
@@ -9,6 +10,7 @@ from .models import Booking
 from .serializers import BookingSerializer, BookingListSerializer
 from .services import send_booking_received, send_booking_confirmation, send_booking_cancelation
 from accounts.permissions import IsAdmin, IsAdminOrVendor
+from vendors.models import Vendor
 
 User = get_user_model()
 
@@ -33,11 +35,17 @@ class BookingViewSet(viewsets.ModelViewSet):
         if user.role == User.Roles.ADMIN:
             return bookings.with_court().with_user()
         if user.role == User.Roles.VENDOR:
-            from vendors.models import Vendor
             vendor = Vendor.objects.filter(user=user).first()
             if vendor:
                 return bookings.for_vendor(vendor).with_court().with_user()
         return bookings.for_user(user).with_court()
+
+    def _check_vendor_ownership(self, booking):
+        """Check if the vendor owns the court for this booking."""
+        if self.request.user.role == User.Roles.VENDOR:
+            vendor = Vendor.objects.filter(user=self.request.user).first()
+            if not vendor or booking.court.vendor != vendor:
+                raise PermissionDenied('You can only manage bookings for your own courts.')
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -69,6 +77,10 @@ class BookingViewSet(viewsets.ModelViewSet):
         if request.user.role == User.Roles.VENDOR:
             return Response({'error': 'Vendors cannot create bookings'}, status=status.HTTP_403_FORBIDDEN)
         with transaction.atomic():
+            from .services import validate_booking_slots
+            court = serializer.validated_data.get('court') if hasattr(serializer, 'validated_data') else request.data.get('court')
+            # Validation will be done in serializer, but we also need to run validate_booking_slots
+            # The actual validation happens in serializer's validate method
             return super().create(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
@@ -92,6 +104,7 @@ class BookingViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdminOrVendor])
     def confirm(self, request, pk=None):
         booking = self.get_object()
+        self._check_vendor_ownership(booking)
         if booking.status == Booking.Status.CANCELLED:
             return Response({'error': 'Cannot confirm a cancelled booking'}, status=status.HTTP_400_BAD_REQUEST)
         booking.status = Booking.Status.CONFIRMED
@@ -99,9 +112,10 @@ class BookingViewSet(viewsets.ModelViewSet):
         send_booking_confirmation(booking)
         return Response({'status': 'confirmed'})
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdminOrVendor])
     def cancel(self, request, pk=None):
         booking = self.get_object()
+        self._check_vendor_ownership(booking)
         if booking.status == Booking.Status.CANCELLED:
             return Response({'error': 'Booking already cancelled'}, status=status.HTTP_400_BAD_REQUEST)
         if booking.status == Booking.Status.COMPLETED:
@@ -114,6 +128,7 @@ class BookingViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdminOrVendor])
     def complete(self, request, pk=None):
         booking = self.get_object()
+        self._check_vendor_ownership(booking)
         if booking.status == Booking.Status.COMPLETED:
             return Response({'status': 'already_completed'})
         if booking.status == Booking.Status.CANCELLED:
@@ -125,6 +140,7 @@ class BookingViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdminOrVendor])
     def restore(self, request, pk=None):
         booking = self.get_object()
+        self._check_vendor_ownership(booking)
         booking.restore()
         return Response({'status': 'restored'})
 

@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_DB: soccer_booking
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:

@@ -9,6 +9,10 @@ logger = logging.getLogger(__name__)
 
 
 def validate_booking_slots(court, date, start_time, end_time, exclude_pk=None):
+    """
+    Validates booking slots for conflicts.
+    Must be called within an existing transaction.atomic() block.
+    """
     if start_time >= end_time:
         raise ValidationError({'end_time': 'End time must be after start time.'})
 
@@ -16,37 +20,39 @@ def validate_booking_slots(court, date, start_time, end_time, exclude_pk=None):
         raise ValidationError({'date': 'Cannot book dates in the past.'})
 
     from courts.models import Court, CourtBlock
-    with transaction.atomic():
-        try:
-            Court.objects.filter(
-                pk=court.pk, is_active=True, deleted_at__isnull=True
-            ).select_for_update().get()
-        except Court.DoesNotExist:
-            raise ValidationError('This court is not available for booking.')
+    
+    # Lock the court row
+    try:
+        Court.objects.filter(
+            pk=court.pk, is_active=True, deleted_at__isnull=True
+        ).select_for_update().get()
+    except Court.DoesNotExist:
+        raise ValidationError('This court is not available for booking.')
 
-        blocked = CourtBlock.objects.filter(
-            court_id=court.pk,
-            date=date,
-            start_time__lt=end_time,
-            end_time__gt=start_time,
-        )
-        if blocked.exists():
-            raise ValidationError('This court is blocked for the selected time slot.')
+    blocked = CourtBlock.objects.filter(
+        court_id=court.pk,
+        date=date,
+        start_time__lt=end_time,
+        end_time__gt=start_time,
+    )
+    if blocked.exists():
+        raise ValidationError('This court is blocked for the selected time slot.')
 
-        overlapping = Booking.objects.filter(
-            court=court,
-            date=date,
-            deleted_at__isnull=True,
-            status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
-            start_time__lt=end_time,
-            end_time__gt=start_time,
-        )
+    # CRITICAL FIX: Lock overlapping bookings to prevent race condition
+    overlapping = Booking.objects.filter(
+        court=court,
+        date=date,
+        deleted_at__isnull=True,
+        status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
+        start_time__lt=end_time,
+        end_time__gt=start_time,
+    ).select_for_update()
 
-        if exclude_pk:
-            overlapping = overlapping.exclude(pk=exclude_pk)
+    if exclude_pk:
+        overlapping = overlapping.exclude(pk=exclude_pk)
 
-        if overlapping.exists():
-            raise ValidationError('This court is already booked for the selected time slot.')
+    if overlapping.exists():
+        raise ValidationError('This court is already booked for the selected time slot.')
 
 
 def calculate_total_price(court, start_time, end_time):

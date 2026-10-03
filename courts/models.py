@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 class SportType(models.TextChoices):
@@ -81,8 +82,14 @@ class Court(models.Model):
     is_active = models.BooleanField(default=True)
     description = models.TextField(blank=True, null=True)
     photo = models.ImageField(upload_to='courts/', blank=True, null=True)
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    latitude = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True,
+        validators=[MinValueValidator(-90), MaxValueValidator(90)]
+    )
+    longitude = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True,
+        validators=[MinValueValidator(-180), MaxValueValidator(180)]
+    )
     vendor = models.ForeignKey('vendors.Vendor', on_delete=models.CASCADE, related_name='courts', null=True, blank=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
 

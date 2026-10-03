@@ -6,15 +6,21 @@ from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import MultipleObjectsReturned
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.html import escape
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.throttling import AnonRateThrottle
 from drf_spectacular.utils import extend_schema
 from ..serializers import DetailResponseSerializer, ForgotPasswordSerializer, ResetPasswordSerializer
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
+
+
+class AuthAnonThrottle(AnonRateThrottle):
+    scope = 'auth'
 
 
 @extend_schema(
@@ -24,6 +30,7 @@ logger = logging.getLogger(__name__)
 )
 class ForgotPasswordView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [AuthAnonThrottle]
 
     def post(self, request):
         email = request.data.get('email', '').strip().lower()
@@ -37,7 +44,8 @@ class ForgotPasswordView(APIView):
 
         token = default_token_generator.make_token(user)
         uid = urlsafe_base64_encode(force_bytes(user.pk))
-        reset_url = f"{settings.FRONTEND_URL}/reset-password?uid={uid}&token={token}"
+        # Token and UID will be sent via email, not in URL
+        # Frontend should accept POST to /reset-password with uid and token in body
 
         try:
             resend.Emails.send({
@@ -47,8 +55,10 @@ class ForgotPasswordView(APIView):
                 "html": f"""
                     <h2>Password Reset Request</h2>
                     <p>Click the link below to reset your password:</p>
-                    <p><a href="{reset_url}">{reset_url}</a></p>
-                    <p>This link expires in 24 hours.</p>
+                    <p><a href="{settings.FRONTEND_URL}/reset-password">{settings.FRONTEND_URL}/reset-password</a></p>
+                    <p>Your reset code: <strong>{escape(token)}</strong></p>
+                    <p>User ID: <strong>{escape(uid)}</strong></p>
+                    <p>This link expires in 1 hour.</p>
                     <p>If you didn't request this, ignore this email.</p>
                 """
             })
@@ -59,12 +69,13 @@ class ForgotPasswordView(APIView):
 
 
 @extend_schema(
-    description='Validate the reset link and set a new password.',
+    description='Validate the reset token and set a new password.',
     request=ResetPasswordSerializer,
     responses={200: DetailResponseSerializer, 400: DetailResponseSerializer},
 )
 class ResetPasswordView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [AuthAnonThrottle]
 
     def post(self, request):
         uidb64 = request.data.get('uid', '')

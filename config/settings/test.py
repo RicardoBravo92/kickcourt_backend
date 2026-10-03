@@ -25,9 +25,9 @@ class DisableMigrations:
 
 MIGRATION_MODULES = DisableMigrations()
 
-# Faster password hashing
+# Faster password hashing (secure but fast for tests)
 PASSWORD_HASHERS = [
-    'django.contrib.auth.hashers.MD5PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
 ]
 
 # Email backend (console for any Django mail usage)

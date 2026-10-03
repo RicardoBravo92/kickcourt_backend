@@ -2,6 +2,7 @@ import logging
 import resend
 from celery import shared_task
 from django.conf import settings
+from django.utils.html import escape
 
 logger = logging.getLogger(__name__)
 
@@ -21,13 +22,13 @@ def send_booking_received_email(self, user_email, user_username, court_name, dat
         subject = f'Booking Request Received - {court_name}'
         html = f"""
             <h2>Booking Request Received</h2>
-            <p>Hi {user_username},</p>
+            <p>Hi {escape(user_username)},</p>
             <p>Your booking request has been received and is pending confirmation.</p>
             <ul>
-                <li>Court: {court_name}</li>
-                <li>Date: {date}</li>
-                <li>Time: {start_time} - {end_time}</li>
-                <li>Total: ${total_price}</li>
+                <li>Court: {escape(court_name)}</li>
+                <li>Date: {escape(date)}</li>
+                <li>Time: {escape(start_time)} - {escape(end_time)}</li>
+                <li>Total: ${escape(total_price)}</li>
             </ul>
             <p>We will notify you once it is confirmed.</p>
         """
@@ -45,13 +46,13 @@ def send_booking_confirmation_email(self, user_email, user_username, court_name,
         subject = f'Booking Confirmed - {court_name}'
         html = f"""
             <h2>Booking Confirmed</h2>
-            <p>Hi {user_username},</p>
+            <p>Hi {escape(user_username)},</p>
             <p>Your booking has been confirmed!</p>
             <ul>
-                <li>Court: {court_name}</li>
-                <li>Date: {date}</li>
-                <li>Time: {start_time} - {end_time}</li>
-                <li>Total: ${total_price}</li>
+                <li>Court: {escape(court_name)}</li>
+                <li>Date: {escape(date)}</li>
+                <li>Time: {escape(start_time)} - {escape(end_time)}</li>
+                <li>Total: ${escape(total_price)}</li>
             </ul>
             <p>Thank you for your booking!</p>
         """
@@ -69,11 +70,11 @@ def send_booking_cancelation_email(self, user_email, user_username, court_name, 
         subject = f'Booking Cancelled - {court_name}'
         html = f"""
             <h2>Booking Cancelled</h2>
-            <p>Hi {user_username},</p>
+            <p>Hi {escape(user_username)},</p>
             <p>Your booking has been cancelled.</p>
             <ul>
-                <li>Court: {court_name}</li>
-                <li>Date: {date}</li>
+                <li>Court: {escape(court_name)}</li>
+                <li>Date: {escape(date)}</li>
             </ul>
             <p>If this was a mistake, please create a new booking.</p>
         """
