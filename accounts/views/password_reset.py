@@ -6,7 +6,6 @@ from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import MultipleObjectsReturned
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
-from django.utils.html import escape
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -44,8 +43,8 @@ class ForgotPasswordView(APIView):
 
         token = default_token_generator.make_token(user)
         uid = urlsafe_base64_encode(force_bytes(user.pk))
-        # Token and UID will be sent via email, not in URL
-        # Frontend should accept POST to /reset-password with uid and token in body
+        # Token and UID are included in the reset link URL
+        # Frontend should extract uid and token from URL query params and POST to /reset-password/
 
         try:
             resend.Emails.send({
@@ -55,9 +54,7 @@ class ForgotPasswordView(APIView):
                 "html": f"""
                     <h2>Password Reset Request</h2>
                     <p>Click the link below to reset your password:</p>
-                    <p><a href="{settings.FRONTEND_URL}/reset-password">{settings.FRONTEND_URL}/reset-password</a></p>
-                    <p>Your reset code: <strong>{escape(token)}</strong></p>
-                    <p>User ID: <strong>{escape(uid)}</strong></p>
+                    <p><a href="{settings.FRONTEND_URL}/reset-password?uid={uid}&token={token}">Reset Password</a></p>
                     <p>This link expires in 1 hour.</p>
                     <p>If you didn't request this, ignore this email.</p>
                 """
