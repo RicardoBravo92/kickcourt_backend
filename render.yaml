@@ -1,15 +1,25 @@
 services:
+  - type: redis
+    name: kickcourt-redis
+    plan: free
+    ipAllowList: []
+    maxmemoryPolicy: noeviction
+
   - type: web
     name: kickcourt-backend
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2
+    startCommand: python manage.py migrate --noinput && daphne -b 0.0.0.0 -p $PORT config.asgi:application
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings.production
       - key: DJANGO_SECRET_KEY
         generateValue: true
+      - key: REDIS_URL
+        fromDatabase:
+          name: kickcourt-redis
+          property: connectionString
       - key: DB_NAME
         value: neondb
       - key: DB_USER
