@@ -44,8 +44,18 @@ CACHES = {
     }
 }
 
-# Disable throttling in tests
+# Disable throttling in tests (keep the base scopes so throttle classes that
+# reference 'auth' / 'check_availability' do not blow up with a 500).
 REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {
+    **REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'],
     'anon': None,
     'user': None,
+    'auth': None,
+    'check_availability': None,
+}
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    }
 }

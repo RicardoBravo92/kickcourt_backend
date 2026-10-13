@@ -10,6 +10,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', '')
 
 INSTALLED_APPS = [
+    'daphne',  # runserver/ASGI for WebSockets
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -21,11 +22,13 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_filters',
     'drf_spectacular',
+    'channels',
     'accounts',
     'fields',
     'bookings',
     'courts',
     'vendors',
+    'realtime',
 ]
 
 MIDDLEWARE = [
@@ -115,6 +118,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'
 
 DATABASES = {
     'default': {
@@ -157,6 +161,17 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Redis Cache
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+
+# Channels WebSocket layer. Dev/test override this to in-memory so `runserver`
+# works without a local Redis (single process is enough there).
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [REDIS_URL],
+        },
+    },
+}
 
 CACHES = {
     'default': {

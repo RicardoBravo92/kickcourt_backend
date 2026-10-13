@@ -6,6 +6,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import CourtSchedule, CourtBlock
 from .serializers import CourtScheduleSerializer, CourtBlockSerializer
 from accounts.permissions import IsAdmin
+from realtime.publishers import publish_availability
 
 
 class CourtScheduleViewSet(viewsets.ModelViewSet):
@@ -31,4 +32,21 @@ class CourtBlockViewSet(viewsets.ModelViewSet):
     filterset_fields = ['court', 'date']
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        block = serializer.save(created_by=self.request.user)
+        publish_availability(block.court_id, str(block.date))
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        block = serializer.save()
+        if (
+            instance.court_id != block.court_id
+            or instance.date != block.date
+            or instance.start_time != block.start_time
+            or instance.end_time != block.end_time
+        ):
+            publish_availability(instance.court_id, str(instance.date))
+        publish_availability(block.court_id, str(block.date))
+
+    def perform_destroy(self, instance):
+        instance.delete()
+        publish_availability(instance.court_id, str(instance.date))

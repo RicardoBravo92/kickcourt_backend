@@ -61,6 +61,25 @@ CACHES = {
     }
 }
 
+# Channels: use Redis when available, otherwise in-memory (single-process only).
+# WARNING: the in-memory layer does not share WebSocket state across processes,
+# so production should either point REDIS_URL at a real Redis or run daphne with
+# a single worker.
+_redis_url = os.getenv('REDIS_URL', '')
+if _redis_url and _redis_url != 'redis://localhost:6379/0':
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {'hosts': [_redis_url]},
+        },
+    }
+else:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        },
+    }
+
 # Disable Celery (requires Redis)
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True

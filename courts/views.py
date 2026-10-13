@@ -66,7 +66,8 @@ class CourtViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'])
     def availability(self, request, pk=None):
-        from bookings.models import Booking
+        from .services import compute_availability_slots
+
         court = self.get_object()
         date_str = request.query_params.get('date')
         if not date_str:
@@ -76,59 +77,4 @@ class CourtViewSet(viewsets.ModelViewSet):
         except ValueError:
             return Response({'error': 'Invalid date format'}, status=400)
 
-        blocks = CourtBlock.objects.filter(court=court, date=date)
-        blocked_hours = set()
-        for block in blocks:
-            hour = block.start_time.hour
-            while hour < block.end_time.hour:
-                blocked_hours.add(hour)
-                hour += 1
-
-        bookings = Booking.objects.filter(
-            court=court, date=date,
-            deleted_at__isnull=True,
-            status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED]
-        )
-        booked_hours = set()
-        for booking in bookings:
-            hour = booking.start_time.hour
-            while hour < booking.end_time.hour:
-                booked_hours.add(hour)
-                hour += 1
-
-        day_of_week = date.weekday()
-        schedules = CourtSchedule.objects.filter(court=court, day_of_week=day_of_week, is_active=True)
-
-        available_hours = set()
-        if schedules.exists():
-            for schedule in schedules:
-                hour = schedule.open_time.hour
-                while hour < schedule.close_time.hour:
-                    available_hours.add(hour)
-                    hour += 1
-        else:
-            for hour in range(8, 24):
-                available_hours.add(hour)
-
-        slots = []
-        for hour in range(8, 24):
-            status = 'available'
-            if hour in booked_hours:
-                status = 'booked'
-            elif hour in blocked_hours:
-                status = 'blocked'
-            elif hour not in available_hours:
-                status = 'closed'
-            slots.append({
-                'hour': hour,
-                'time': f'{hour:02d}:00',
-                'end_time': f'{hour + 1:02d}:00',
-                'status': status,
-            })
-
-        return Response({
-            'court_id': court.id,
-            'court_name': court.name,
-            'date': date_str,
-            'slots': slots,
-        })
+        return Response(compute_availability_slots(court, date))

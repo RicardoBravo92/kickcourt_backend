@@ -9,6 +9,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import Booking
 from .serializers import BookingSerializer, BookingListSerializer
 from .services import send_booking_received, send_booking_confirmation, send_booking_cancelation
+from realtime.publishers import publish_availability, publish_booking_event
 from accounts.permissions import IsAdmin, IsAdminOrVendor
 from vendors.models import Vendor
 
@@ -59,9 +60,13 @@ class BookingViewSet(viewsets.ModelViewSet):
             booking.commission = calculate_commission(booking.total_price, booking.court.vendor.commission_rate)
         booking.save(update_fields=['total_price', 'commission'])
         send_booking_received(booking)
+        publish_availability(booking.court_id, str(booking.date))
+        publish_booking_event(booking, 'created')
 
     def perform_update(self, serializer):
         instance = self.get_object()
+        previous_court_id = instance.court_id
+        previous_date = str(instance.date)
         from .services import calculate_total_price, calculate_commission
         previous_total = calculate_total_price(instance.court, instance.start_time, instance.end_time)
         booking = serializer.save()
@@ -72,16 +77,18 @@ class BookingViewSet(viewsets.ModelViewSet):
             if booking.court.vendor and booking.court.vendor.is_approved:
                 booking.commission = calculate_commission(new_total, booking.court.vendor.commission_rate)
             booking.save(update_fields=['total_price', 'commission'])
+        # Old slot may come free if court/date/time changed.
+        if previous_court_id != booking.court_id or previous_date != str(booking.date):
+            publish_availability(previous_court_id, previous_date)
+        publish_availability(booking.court_id, str(booking.date))
+        publish_booking_event(booking, 'updated')
 
     def create(self, request, *args, **kwargs):
         if request.user.role == User.Roles.VENDOR:
             return Response({'error': 'Vendors cannot create bookings'}, status=status.HTTP_403_FORBIDDEN)
-        with transaction.atomic():
-            from .services import validate_booking_slots
-            court = serializer.validated_data.get('court') if hasattr(serializer, 'validated_data') else request.data.get('court')
-            # Validation will be done in serializer, but we also need to run validate_booking_slots
-            # The actual validation happens in serializer's validate method
-            return super().create(request, *args, **kwargs)
+        # Slot-overlap validation runs inside BookingSerializer.validate
+        # (see bookings.serializers) inside the transaction started by DRF.
+        return super().create(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
         with transaction.atomic():
@@ -110,9 +117,11 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking.status = Booking.Status.CONFIRMED
         booking.save()
         send_booking_confirmation(booking)
+        publish_availability(booking.court_id, str(booking.date))
+        publish_booking_event(booking, 'confirmed')
         return Response({'status': 'confirmed'})
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdminOrVendor])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def cancel(self, request, pk=None):
         booking = self.get_object()
         self._check_vendor_ownership(booking)
@@ -123,6 +132,8 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking.status = Booking.Status.CANCELLED
         booking.save()
         send_booking_cancelation(booking)
+        publish_availability(booking.court_id, str(booking.date))
+        publish_booking_event(booking, 'cancelled')
         return Response({'status': 'cancelled'})
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdminOrVendor])
@@ -135,6 +146,8 @@ class BookingViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Cannot complete a cancelled booking'}, status=status.HTTP_400_BAD_REQUEST)
         booking.status = Booking.Status.COMPLETED
         booking.save()
+        publish_availability(booking.court_id, str(booking.date))
+        publish_booking_event(booking, 'completed')
         return Response({'status': 'completed'})
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdminOrVendor])
@@ -142,6 +155,8 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking = self.get_object()
         self._check_vendor_ownership(booking)
         booking.restore()
+        publish_availability(booking.court_id, str(booking.date))
+        publish_booking_event(booking, 'restored')
         return Response({'status': 'restored'})
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsAdmin])

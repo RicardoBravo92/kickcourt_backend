@@ -32,6 +32,7 @@ urlpatterns = [
     path('api/', include('bookings.urls')),
     path('api/', include('courts.urls')),
     path('api/', include('vendors.urls')),
+    path('api/', include('realtime.urls')),
 
     # SEO static pages
     path('robots.txt', TemplateView.as_view(template_name='robots.txt', content_type='text/plain')),

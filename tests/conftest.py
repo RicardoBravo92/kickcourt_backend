@@ -24,6 +24,14 @@ def utc_timezone(settings):
     settings.TIME_ZONE = 'UTC'
 
 
+@pytest.fixture(autouse=True)
+def debug_settings(settings):
+    """Re-enable DEBUG: pytest-django's test environment forces it off, but
+    config.settings.test declares DEBUG=True and the custom error envelope
+    (config.exceptions) only exposes `details` when DEBUG is on."""
+    settings.DEBUG = True
+
+
 @pytest.fixture
 def user(db):
     return UserFactory()

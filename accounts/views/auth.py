@@ -40,15 +40,22 @@ class CheckAvailabilityView(APIView):
     throttle_classes = [CheckAvailabilityThrottle]
 
     def post(self, request):
-        username = request.data.get('username', '').strip()
-        email = request.data.get('email', '').strip()
+        serializer = CheckAvailabilitySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
 
-        # Always return the same generic response to prevent user enumeration
-        # In a real implementation, you might send an email to the user if they exist
-        return Response(
-            {'detail': 'If the username or email exists, an availability check has been sent.'},
-            status=status.HTTP_200_OK
-        )
+        result = {}
+        username = data.get('username', '').strip()
+        if username:
+            result['username_available'] = not User.objects.filter(
+                username__iexact=username
+            ).exists()
+        email = data.get('email', '').strip()
+        if email:
+            result['email_available'] = not User.objects.filter(
+                email__iexact=email
+            ).exists()
+        return Response(result, status=status.HTTP_200_OK)
 
 
 @extend_schema_view(
