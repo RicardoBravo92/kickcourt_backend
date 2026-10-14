@@ -124,7 +124,10 @@ class ForgotPasswordSerializer(serializers.Serializer):
 class ResetPasswordSerializer(serializers.Serializer):
     uid = serializers.CharField(help_text='Base64-encoded user id from the reset link.')
     token = serializers.CharField(help_text='Password reset token from the reset link.')
-    new_password = serializers.CharField(write_only=True, min_length=8)
+    new_password = serializers.CharField(
+        write_only=True,
+        validators=[validate_password],
+    )
 
 
 class CheckAvailabilitySerializer(serializers.Serializer):

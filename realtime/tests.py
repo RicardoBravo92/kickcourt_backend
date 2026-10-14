@@ -1,5 +1,12 @@
 import asyncio
+import os
 from datetime import time, timedelta
+
+# simplejwt's token_blacklist inserts an OutstandingToken when a refresh token
+# is minted (_jwt below runs synchronously inside the async scenarios). Allow
+# that single tiny insert; every other DB access in these tests runs in a
+# worker thread via database_sync_to_async / asyncio.to_thread.
+os.environ.setdefault('DJANGO_ALLOW_ASYNC_UNSAFE', 'true')
 
 from channels.layers import get_channel_layer
 from channels.testing import WebsocketCommunicator

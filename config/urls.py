@@ -12,16 +12,33 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
     SpectacularRedocView,
 )
+from rest_framework.permissions import IsAuthenticated
 
+from accounts.permissions import IsAdmin
 from accounts.views.auth import CustomTokenObtainPairView
+
+
+class ProtectedSchemaView(SpectacularAPIView):
+    """Keep the API schema private; it exposes the whole data model."""
+
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+
+class ProtectedSwaggerView(SpectacularSwaggerView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+
+class ProtectedRedocView(SpectacularRedocView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
 
-    # API Docs
-    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
-    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
-    path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+    # API Docs (admin-only; the schema leaks endpoints and business rules)
+    path('api/schema/', ProtectedSchemaView.as_view(), name='schema'),
+    path('api/docs/', ProtectedSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/redoc/', ProtectedRedocView.as_view(url_name='schema'), name='redoc'),
 
     # Auth Endpoints (JWT)
     path('api/auth/login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
