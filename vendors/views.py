@@ -24,6 +24,8 @@ class VendorViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated(), IsAdmin()]
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return Vendor.objects.none()
         user = self.request.user
         if user.role == User.Roles.VENDOR:
             return Vendor.objects.filter(user=user)

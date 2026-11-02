@@ -38,16 +38,84 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
 
-# Content Security Policy (requires django-csp package)
-CSP_DEFAULT_SRC = ("'self'",)
-CSP_SCRIPT_SRC = ("'self'",)
-CSP_STYLE_SRC = ("'self'", "'unsafe-inline'")
-CSP_IMG_SRC = ("'self'", "data:", "https:")
-CSP_FONT_SRC = ("'self'",)
-CSP_CONNECT_SRC = ("'self'",)
-CSP_FRAME_ANCESTORS = ("'none'",)
-CSP_BASE_URI = ("'self'",)
-CSP_FORM_ACTION = ("'self'",)
+# Media: Render's disk is ephemeral, so uploads (court images) must live in
+# object storage. Setting AWS_STORAGE_BUCKET_NAME enables S3-compatible
+# storage (AWS S3, Cloudflare R2, Backblaze B2, MinIO...).
+_s3_bucket = os.getenv('AWS_STORAGE_BUCKET_NAME', '')
+if _s3_bucket:
+    _s3_options = {
+        'bucket_name': _s3_bucket,
+        'querystring_auth': False,
+        'file_overwrite': False,
+    }
+    if os.getenv('AWS_S3_REGION_NAME'):
+        _s3_options['region_name'] = os.getenv('AWS_S3_REGION_NAME')
+    if os.getenv('AWS_S3_ENDPOINT_URL'):
+        _s3_options['endpoint_url'] = os.getenv('AWS_S3_ENDPOINT_URL')
+    _s3_domain = os.getenv('AWS_S3_CUSTOM_DOMAIN', '')
+    if _s3_domain:
+        _s3_options['custom_domain'] = _s3_domain
+
+    STORAGES['default'] = {
+        'BACKEND': 'storages.backends.s3.S3Storage',
+        'OPTIONS': _s3_options,
+    }
+    _media_base = _s3_domain or f'{_s3_bucket}.s3.amazonaws.com'
+    MEDIA_URL = os.getenv('MEDIA_URL', f'https://{_media_base}/')
+
+# Static files: WhiteNoise serves them from the ASGI process, so no separate
+# CDN/nginx is required. Manifest storage adds hashed, compressed filenames.
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
+
+# Media: Render's disk is ephemeral, so uploaded files (court images) must go
+# to object storage. Point these at any S3-compatible bucket (AWS S3,
+# Cloudflare R2, Backblaze B2, ...). Without a bucket, Django keeps using the
+# local filesystem (fine for development, unsuitable for production).
+_media_bucket = os.getenv('AWS_STORAGE_BUCKET_NAME', '')
+if _media_bucket:
+    STORAGES['default'] = {
+        'BACKEND': 'storages.backends.s3.S3Storage',
+        'OPTIONS': {
+            'bucket_name': _media_bucket,
+            'region_name': os.getenv('AWS_S3_REGION_NAME') or None,
+            'endpoint_url': os.getenv('AWS_S3_ENDPOINT_URL') or None,
+            'custom_domain': os.getenv('AWS_S3_CUSTOM_DOMAIN') or None,
+            'querystring_auth': False,
+            'file_overwrite': False,
+        },
+    }
+    MEDIA_URL = os.getenv('MEDIA_URL', f'https://{_media_bucket}.s3.amazonaws.com/')
+
+# Content Security Policy (django-csp >= 4.0 uses this dict format).
+# The middleware is enabled in production.py only, so the Angular dev server
+# (HMR + WebSockets) is not affected locally.
+CONTENT_SECURITY_POLICY = {
+    'DIRECTIVES': {
+        'default-src': ["'self'"],
+        'script-src': ["'self'"],
+        'style-src': ["'self'", "'unsafe-inline'"],
+        'img-src': ["'self'", 'data:', 'https:'],
+        'font-src': ["'self'"],
+        'connect-src': ["'self'", 'https:'],
+        'object-src': ["'none'"],
+        'frame-ancestors': ["'none'"],
+        'base-uri': ["'self'"],
+        'form-action': ["'self'"],
+    }
+}
+
+# Attach the CSP middleware right after SecurityMiddleware.
+MIDDLEWARE.insert(
+    MIDDLEWARE.index('django.middleware.security.SecurityMiddleware') + 1,
+    'csp.middleware.CSPMiddleware',
+)
 
 # Neon requires SSL
 DATABASES['default']['OPTIONS'] = {
@@ -80,9 +148,13 @@ else:
         },
     }
 
-# Disable Celery (requires Redis)
-CELERY_TASK_ALWAYS_EAGER = True
-CELERY_TASK_EAGER_PROPAGATES = True
+# Celery: run eagerly only when no broker is configured. With Redis in
+# production (REDIS_URL) tasks must be dispatched asynchronously, otherwise
+# every booking request performs the email send inline.
+CELERY_TASK_ALWAYS_EAGER = not bool(
+    os.getenv('CELERY_BROKER_URL') or os.getenv('REDIS_URL')
+)
+CELERY_TASK_EAGER_PROPAGATES = False
 
 LOGGING = {
     'version': 1,

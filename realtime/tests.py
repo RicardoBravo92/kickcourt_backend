@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 import os
 from datetime import time, timedelta
 
@@ -107,12 +107,12 @@ class CourtConsumerTestCase(RealtimeBaseTestCase):
 
 class NotificationsConsumerTestCase(RealtimeBaseTestCase):
     def setUp(self):
-        self.client_user = User.objects.create_user(username='client', password='pass123')
+        self.client_user = User.objects.create_user(username='client', email='client@example.com', password='pass123')
         self.admin_user = User.objects.create_user(
-            username='admin', password='pass123', role='ADMIN'
+            username='admin', email='admin@example.com', password='pass123', role='ADMIN'
         )
         self.vendor_user = User.objects.create_user(
-            username='vendor', password='pass123', role='VENDOR'
+            username='vendor', email='vendor@example.com', password='pass123', role='VENDOR'
         )
         self.vendor = Vendor.objects.create(
             user=self.vendor_user, business_name='Vendor SA', is_approved=True
@@ -201,10 +201,10 @@ class NotificationsConsumerTestCase(RealtimeBaseTestCase):
 
 class ChatConsumerTestCase(RealtimeBaseTestCase):
     def setUp(self):
-        self.client_user = User.objects.create_user(username='client', password='pass123')
-        self.other_client = User.objects.create_user(username='other', password='pass123')
+        self.client_user = User.objects.create_user(username='client', email='client@example.com', password='pass123')
+        self.other_client = User.objects.create_user(username='other', email='other@example.com', password='pass123')
         self.vendor_user = User.objects.create_user(
-            username='vendor', password='pass123', role='VENDOR'
+            username='vendor', email='vendor@example.com', password='pass123', role='VENDOR'
         )
         self.vendor = Vendor.objects.create(
             user=self.vendor_user, business_name='Vendor SA', is_approved=True
@@ -308,10 +308,10 @@ class ChatConsumerTestCase(RealtimeBaseTestCase):
 
 class ChatRestTestCase(TransactionTestCase):
     def setUp(self):
-        self.client_user = User.objects.create_user(username='client', password='pass123')
-        self.other_client = User.objects.create_user(username='other', password='pass123')
+        self.client_user = User.objects.create_user(username='client', email='client@example.com', password='pass123')
+        self.other_client = User.objects.create_user(username='other', email='other@example.com', password='pass123')
         self.vendor_user = User.objects.create_user(
-            username='vendor', password='pass123', role='VENDOR'
+            username='vendor', email='vendor@example.com', password='pass123', role='VENDOR'
         )
         self.vendor = Vendor.objects.create(
             user=self.vendor_user, business_name='Vendor SA', is_approved=True
@@ -364,9 +364,9 @@ class BookingEventBroadcastTestCase(TransactionTestCase):
     """End-to-end: creating/confirming a booking publishes to the right rooms."""
 
     def setUp(self):
-        self.client_user = User.objects.create_user(username='client', password='pass123')
+        self.client_user = User.objects.create_user(username='client', email='client@example.com', password='pass123')
         self.vendor_user = User.objects.create_user(
-            username='vendor', password='pass123', role='VENDOR'
+            username='vendor', email='vendor@example.com', password='pass123', role='VENDOR'
         )
         self.vendor = Vendor.objects.create(
             user=self.vendor_user, business_name='Vendor SA', is_approved=True

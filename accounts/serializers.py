@@ -1,7 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -19,31 +18,42 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     email = serializers.EmailField(required=False)
     username = serializers.CharField(required=False)
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # TokenObtainSerializer.__init__ forcibly replaces the username field
+        # with a required CharField, ignoring the ``required=False`` above.
+        # Relax it so a login payload carrying only ``username`` validates,
+        # then let ``validate()`` resolve the real identifier.
+        self.fields[self.username_field].required = False
+        self.fields[self.username_field].allow_blank = True
+
     def validate(self, attrs):
-        email = attrs.get('email', '')
-        username = attrs.get('username', '')
-        
-        # If email provided, use it directly (USERNAME_FIELD = 'email')
+        email = (attrs.get('email') or '').strip()
+        username = (attrs.get('username') or '').strip()
+
+        # If an explicit email field was sent, use it directly
+        # (USERNAME_FIELD = 'email').
         if email:
             attrs['email'] = email.lower()
-        # If username provided, look up the email
         elif username:
-            try:
-                user = User.objects.get(username=username)
-                attrs['email'] = user.email
-            except ObjectDoesNotExist:
+            # The login form sends a single "username" field that may hold
+            # either the username or the email address.
+            lookup = (
+                {'email__iexact': username}
+                if '@' in username
+                else {'username__iexact': username}
+            )
+            user = User.objects.filter(**lookup).first()
+            if user is None:
                 raise serializers.ValidationError(
-                    {'detail': 'No account found with this username.'}
+                    {'detail': 'No account found with these credentials.'}
                 )
-            except MultipleObjectsReturned:
-                raise serializers.ValidationError(
-                    {'detail': 'No account found with this username.'}
-                )
+            attrs['email'] = user.email.lower()
         else:
             raise serializers.ValidationError(
                 {'detail': 'Email or username is required.'}
             )
-        
+
         return super().validate(attrs)
 
     @classmethod

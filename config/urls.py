@@ -16,6 +16,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from accounts.permissions import IsAdmin
 from accounts.views.auth import CustomTokenObtainPairView
+from config.views import health
 
 
 class ProtectedSchemaView(SpectacularAPIView):
@@ -34,6 +35,10 @@ class ProtectedRedocView(SpectacularRedocView):
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+
+    # Health probe (Render healthCheckPath + external monitors)
+    path('health', health, name='health'),
+    path('health/', health, name='health-slash'),
 
     # API Docs (admin-only; the schema leaks endpoints and business rules)
     path('api/schema/', ProtectedSchemaView.as_view(), name='schema'),

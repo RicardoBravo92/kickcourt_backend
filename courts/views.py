@@ -28,6 +28,8 @@ class CourtViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = Court.objects.active()
+        if getattr(self, 'swagger_fake_view', False):
+            return qs.none()
         user = self.request.user
         if self.action in ('update', 'partial_update', 'destroy'):
             if user.role == User.Roles.ADMIN:

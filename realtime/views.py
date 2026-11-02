@@ -27,6 +27,8 @@ class BookingMessageListCreateView(generics.ListCreateAPIView):
         return booking
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return Message.objects.none()
         booking = self._get_booking()
         return Message.objects.filter(booking=booking)
 

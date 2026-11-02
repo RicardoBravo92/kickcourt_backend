@@ -21,7 +21,7 @@ class UserModelTest(TestCase):
         self.assertEqual(self.user.role, User.Roles.CLIENT)
 
     def test_user_str(self):
-        self.assertEqual(str(self.user), 'testuser (CLIENT)')
+        self.assertEqual(str(self.user), 'test@example.com (CLIENT)')
 
     def test_admin_role(self):
         admin = User.objects.create_superuser(

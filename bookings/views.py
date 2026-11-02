@@ -26,6 +26,10 @@ class BookingViewSet(viewsets.ModelViewSet):
     ordering = ['-date', '-start_time']
 
     def get_queryset(self):
+        # drf-spectacular builds the schema with an AnonymousUser, which has
+        # no `role`; return an empty queryset for those introspection calls.
+        if getattr(self, 'swagger_fake_view', False):
+            return Booking.objects.none()
         # `restore` must be able to reach soft-deleted bookings, so it uses the
         # unfiltered manager instead of the default active-only queryset.
         return self._scoped_queryset(include_deleted=self.action == 'restore')
