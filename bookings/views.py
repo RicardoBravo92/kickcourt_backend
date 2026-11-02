@@ -87,8 +87,10 @@ class BookingViewSet(viewsets.ModelViewSet):
         if request.user.role == User.Roles.VENDOR:
             return Response({'error': 'Vendors cannot create bookings'}, status=status.HTTP_403_FORBIDDEN)
         # Slot-overlap validation runs inside BookingSerializer.validate
-        # (see bookings.serializers) inside the transaction started by DRF.
-        return super().create(request, *args, **kwargs)
+        # (see bookings.serializers). It uses select_for_update(), which
+        # requires an atomic block on PostgreSQL.
+        with transaction.atomic():
+            return super().create(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
         with transaction.atomic():

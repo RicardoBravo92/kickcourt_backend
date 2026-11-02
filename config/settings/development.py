@@ -30,6 +30,13 @@ CHANNEL_LAYERS = {
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
+# No Redis in local dev: an in-memory broker keeps `.delay()` from trying to
+# reach localhost:6379 (which raised RuntimeError and produced 500s on booking
+# creation). Emails are simply queued and never delivered in development.
+CELERY_BROKER_URL = 'memory://'
+CELERY_RESULT_BACKEND = 'cache+memory://'
+CELERY_TASK_ALWAYS_EAGER = False
+
 # Security headers for development
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'

@@ -87,9 +87,22 @@ def create_booking(user, court, date, start_time, end_time):
     return booking
 
 
+def _enqueue_notification(task, **kwargs):
+    """Enqueue an email task without ever breaking the booking request.
+
+    Email delivery is best-effort: a missing broker (Redis) or a task
+    serialization problem must not turn a successful booking into a 500.
+    """
+    try:
+        task.delay(**kwargs)
+    except Exception:  # noqa: BLE001 - notifications must never fail the request
+        logger.exception('Failed to enqueue %s', getattr(task, 'name', task))
+
+
 def send_booking_received(booking):
     from .tasks import send_booking_received_email
-    send_booking_received_email.delay(
+    _enqueue_notification(
+        send_booking_received_email,
         user_email=booking.user.email,
         user_username=booking.user.username,
         court_name=booking.court.name,
@@ -102,7 +115,8 @@ def send_booking_received(booking):
 
 def send_booking_confirmation(booking):
     from .tasks import send_booking_confirmation_email
-    send_booking_confirmation_email.delay(
+    _enqueue_notification(
+        send_booking_confirmation_email,
         user_email=booking.user.email,
         user_username=booking.user.username,
         court_name=booking.court.name,
@@ -115,7 +129,8 @@ def send_booking_confirmation(booking):
 
 def send_booking_cancelation(booking):
     from .tasks import send_booking_cancelation_email
-    send_booking_cancelation_email.delay(
+    _enqueue_notification(
+        send_booking_cancelation_email,
         user_email=booking.user.email,
         user_username=booking.user.username,
         court_name=booking.court.name,
