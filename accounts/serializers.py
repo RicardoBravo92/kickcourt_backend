@@ -9,22 +9,41 @@ User = get_user_model()
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    username = serializers.CharField(required=True)
+    """
+    Custom serializer that accepts either email or username for login.
+    Since USERNAME_FIELD = 'email', the parent expects 'email' field.
+    We make email not required so username can be used instead.
+    """
+    # Override the username_field to use our custom logic
+    username_field = 'email'
+    email = serializers.EmailField(required=False)
+    username = serializers.CharField(required=False)
 
     def validate(self, attrs):
-        username_or_email = attrs.get('username', '')
-        if '@' in username_or_email:
+        email = attrs.get('email', '')
+        username = attrs.get('username', '')
+        
+        # If email provided, use it directly (USERNAME_FIELD = 'email')
+        if email:
+            attrs['email'] = email.lower()
+        # If username provided, look up the email
+        elif username:
             try:
-                user = User.objects.get(email=username_or_email)
-                attrs['username'] = user.username
+                user = User.objects.get(username=username)
+                attrs['email'] = user.email
             except ObjectDoesNotExist:
                 raise serializers.ValidationError(
-                    {'detail': 'No account found with this email.'}
+                    {'detail': 'No account found with this username.'}
                 )
             except MultipleObjectsReturned:
                 raise serializers.ValidationError(
-                    {'detail': 'No account found with this email.'}
+                    {'detail': 'No account found with this username.'}
                 )
+        else:
+            raise serializers.ValidationError(
+                {'detail': 'Email or username is required.'}
+            )
+        
         return super().validate(attrs)
 
     @classmethod

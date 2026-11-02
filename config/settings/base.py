@@ -9,6 +9,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', '')
 
+DEBUG = False  # Default to False, overridden in development.py
+
 INSTALLED_APPS = [
     'daphne',  # runserver/ASGI for WebSockets
     'django.contrib.admin',
@@ -47,6 +49,14 @@ MIDDLEWARE = [
 AUTH_USER_MODEL = 'accounts.User'
 
 CORS_ALLOWED_ORIGINS = [o.strip() for o in os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:4200').split(',') if o.strip()]
+
+# Validate ALLOWED_HOSTS early (catches misconfig in dev too)
+_raw_allowed = os.getenv('ALLOWED_HOSTS', '') or os.getenv('DJANGO_ALLOWED_HOSTS', '')
+ALLOWED_HOSTS = [host.strip() for host in _raw_allowed.split(',') if host.strip()]
+
+if not DEBUG and not ALLOWED_HOSTS:
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured('ALLOWED_HOSTS must be set in production.')
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [

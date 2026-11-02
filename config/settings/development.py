@@ -5,7 +5,9 @@ if not SECRET_KEY:
     SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', get_random_secret_key())
 
 DEBUG = True
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+# Allow localhost without env var in development
+if not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
 
 DATABASES = {
     'default': {
